@@ -20,9 +20,31 @@ class Player:
 
 
 # Procedural generation of goods, pirates, and planets
-goods_list = ["Plasma", "Fuel", "Water", "Titanium", "Food"]
-planet_names = ["Zanxor", "Novus", "Kalrix", "Velor", "Gorath"]
-pirate_names = ["Rex", "Sly", "Fang", "Blaze", "Havok"]
+goods_list = [
+    "Plasma", "Fuel", "Water", "Titanium", "Food",
+    "Quantum Core", "Nebula Dust", "Solar Crystals",
+    "Dark Matter", "Ion Fuel", "Warp Cells", "Xenon Gas",
+    "Nanite Circuits", "Antimatter Pods", "Star Alloy",
+    "Tritium Ore", "Hyperfiber Cloth", "Photon Shields",
+    "Cryo Gel", "Plasma Conduit", "ExoFood Rations",
+    "Terraforming Seeds", "Gravity Stabilizer"
+]
+
+planet_names = [
+    "Zanxor", "Novus", "Kalrix", "Velor", "Gorath",
+    "Zethar", "Avolon", "Krylith", "Dranak", "Phyros",
+    "Vespera", "Xenthos", "Lyrin", "Gryphonis", "Vortalis",
+    "Thalara", "Nexaris", "Orinth", "Kovarion", "Lysara",
+    "Valaxar", "Epsilon-7", "Tarvos"
+]
+
+pirate_names = [
+    "Rex", "Sly", "Fang", "Blaze", "Havok",
+    "Ravager", "Scorn", "Widowmaker", "Phantom", "Viper",
+    "Blackclaw", "Razor", "Wraith", "Dread", "Inferno",
+    "Havok", "Shadowstrike", "Ironfang", "Skullbane",
+    "Venom", "Firestorm", "Bloodhawk", "Fangblade"
+]
 
 
 def print_menu(title, options):
