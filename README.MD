@@ -52,3 +52,20 @@ To install dependencies, run:
 ```bash
 poetry install
 ```
+
+## Running the Game
+
+To start the game, run:
+```bash
+poetry run python -m game.py
+```  
+
+To start the server, run:
+```bash
+poetry run python -m server.py
+```
+
+To connect to game server, run:
+```bash
+telnet 127.0.0.1 3000
+```

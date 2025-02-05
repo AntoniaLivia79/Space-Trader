@@ -48,15 +48,15 @@ pirate_names = [
 
 
 def print_menu(title, options):
-    print(f"\n{title}")
+    print(f"\n=== {title} ===")
     for i, option in enumerate(options, 1):
         print(f"{i}. {option}")
-    print("\n")
+    print("Choose option 1-{}".format(len(options)), end='', flush=True)
 
 
 def buy_goods(player: Player):
     good = random.choice(goods_list)
-    price = random.randint(100, 300)
+    price = random.randint(20, 300)
     print(f"Buy {good} for {price} credits?")
     if input("1. Yes 2. No: ") == "1":
         if player.credits >= price:
