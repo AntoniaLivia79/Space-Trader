@@ -33,6 +33,7 @@ def print_menu(title, options):
     print("Choose option 1-" + str(len(options)))
 
 def buy_goods(player):
+    global game_running
     global goods_list
     good = random.choice(goods_list)
     price = random.randint(20, 300)
@@ -45,10 +46,19 @@ def buy_goods(player):
             else:
                 player["goods"][good] = 1
             print("Bought " + good)
+            if player["location"] == "exchange":
+                if player["credits"] - 5 < 0:
+                    print("\nYou were unable to pay the trade tax")
+                    print("so your ship has been impounded.")
+                    game_running = False
+                else:
+                    player["credits"] -= 5
+                    print("Trade tax of 5 credits paid.")
         else:
             print("Not enough credits.")
 
 def sell_goods(player):
+    global game_running
     if not player["goods"]:
         print("\nNo goods to sell.")
         return
@@ -61,6 +71,14 @@ def sell_goods(player):
         if player["goods"][good] == 0:
             del player["goods"][good]
         print("Sold " + good)
+        if player["location"] == "exchange":
+            if player["credits"] - 5 < 0:
+                print("\nYou were unable to pay the trade tax")
+                print("so your ship has been impounded.")
+                game_running = False
+            else:
+                player["credits"] -= 5
+                print("Trade tax of 5 credits paid.")
 
 def upgrade_ship(player):
     print_menu("\nUpgrade Ship", ["Engine", "Hold", "Shields", "Weapons"])
@@ -155,6 +173,8 @@ def planet_encounter(player):
         trader_encounter(player)
 
 def exploration(player):
+    global game_running
+    player["exchange"] = "space"
     for _ in range(player["engine"]):
         encounter = random.choice(["pirate", "trader", "planet", "empty"])
         if encounter == "pirate":
@@ -166,6 +186,17 @@ def exploration(player):
         elif encounter == "empty":
             print("\nNothing here...")
         input("\nPress EXE to continue exploring...")
+    print("\nDocking back at the Exchange...")
+    player["exchange"] = "exchange"
+    if player["credits"] - 20 < 0:
+        print("\nYou were unable to pay docking fees")
+        print("so your ship has been impounded.")
+        game_running = False
+    else:
+        player["credits"] -= 20
+        print("\nDocked at the Galactic Exchange.")
+        print("Docking fees: 20 credits")
+        input("\nPress EXE to continue...")
 
 def instructions():
     print("\nAbout the Game:")
@@ -191,6 +222,15 @@ def instructions():
     print("\n - Buy Goods")
     print(" - Sell Goods")
     print(" - Upgrade your Ship")
+    input("\nPress EXE to continue...")
+    print("\nYou will have to pay a tax")
+    print("of 5 credits on each trade")
+    print("at the Galactic Exchange.")
+    print("\nYou will also have to pay")
+    print("a docking fee of 20 credits")
+    print("when docking at the Galactic")
+    print("Exchange. Your ship will be")
+    print("impounded if you cannot pay.")
     input("\nPress EXE to continue...")
     print("\n3. During exploration, you'll")
     print("face 1 to 4 encounters based")
@@ -290,6 +330,7 @@ def galactic_exchange(player):
 # Initialize player as a dictionary instead of dataclass
 player = {
     "age": 30,
+    "location": "exchange",
     "credits": 1000,
     "engine": 1,
     "hold": 5,
