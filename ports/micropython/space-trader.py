@@ -2,50 +2,98 @@ import random
 from math import floor
 
 goods_list = [
-    "Plasma", "Fuel", "Water", "Titanium", "Food",
-    "Quantum Core", "Nebula Dust", "Solar Crystals",
-    "Dark Matter", "Ion Fuel", "Warp Cells", "Xenon Gas",
+    "Stellar Plasma", "Neutronium Ore", "Quantum Dust", "Medical Nanites",
+    "Gravitic Particles", "Tachyon Batteries", "Deflector Arrays",
+    "Quantum Cores", "Nebula Dust", "Solar Crystals",
+    "Dark Matter", "Ion Fuel", "Warp Cells", "Gravitic Particles",
     "Nanite Circuits", "Antimatter Pods", "Star Alloy",
-    "Tritium Ore", "Hyperfiber Cloth", "Photon Shields",
-    "Cryo Gel", "Plasma Conduit", "ExoFood Rations",
-    "Terraforming Seeds", "Gravity Stabilizer"
+    "Tritium Ore", "Hyperfiber Cloths", "Photon Shields",
+    "Cryo Gel", "Plasma Conduits", "ExoFood Rations",
+    "Terraforming Seeds", "Gravity Stabilizers", "Void Crystals",
+    "Dimensional Fabrics", "Cosmic Silk", "Terraforming Bacteria"
 ]
 planet_names = [
     "Zanxor", "Novus", "Kalrix", "Velor", "Gorath",
     "Zethar", "Avolon", "Krylith", "Dranak", "Phyros",
     "Vespera", "Xenthos", "Lyrin", "Gryphonis", "Vortalis",
     "Thalara", "Nexaris", "Orinth", "Kovarion", "Lysara",
-    "Valaxar", "Epsilon-7", "Tarvos"
+    "Valaxar", "Epsilon-7", "Tarvos", "Veridian",
+    "Zenithia", "Novaris", "Helios"
 ]
 pirate_names = [
     "Rex", "Sly", "Fang", "Blaze", "Havok",
     "Ravager", "Scorn", "Widowmaker", "Phantom", "Viper",
     "Blackclaw", "Razor", "Wraith", "Dread", "Inferno",
     "Havok", "Shadowstrike", "Ironfang", "Skullbane",
-    "Venom", "Firestorm", "Bloodhawk", "Fangblade"
+    "Venom", "Firestorm", "Bloodhawk", "Fangblade",
+    "Nightshade", "Thornheart", "Kane", "Bloodfang",
+    "Talon", "Hex", "Starkiller", "Deathwing", "Darkstar"
 ]
+trader_names = [
+    "Zara Vex", "Maxwell Orion", "Luna Stardust", "Darius Nova",
+    "Seraphina Flux", "Jericho Steel", "Thalia Warp", "Cassius Corda",
+    "Vesper Gray", "Solomon Quasar", "Lyra Comet", "Drexel Atlas",
+    "Astrid Moonglow", "Rigel Amberwing", "Celeste Horizon", "Tiberius Void"
+]
+
 game_running = True
 
 def print_menu(title, options):
-    print("\n=== " + title + " ===")
+    print(title)
     for i, option in enumerate(options, 1):
         print(str(i) + ". " + option)
     print("Choose option 1-" + str(len(options)))
 
 def buy_goods(player):
-    global game_running
-    global goods_list
-    good = random.choice(goods_list)
-    price = random.randint(20, 300)
-    print("\nBuy " + good + " for " + str(price) + " credits?")
-    if input("1. Yes 2. No: ") == "1":
-        if player["credits"] >= price:
-            player["credits"] -= price
-            if good in player["goods"]:
-                player["goods"][good] += 1
+    if celastra_exchange["traders"] > 0:
+        global game_running
+        global goods_list
+        good = random.choice(goods_list)
+        price = random.randint(20, 300)
+        trader_name = random.choice(trader_names)
+        print("\n" + trader_name +" is selling " + good + " for " + str(price) + " credits.")
+        print("Buy " + good + "?")
+        celastra_exchange["traders"] -= 1
+        if input("1. Yes 2. No: ") == "1":
+            if player["credits"] >= price:
+                player["credits"] -= price
+                if good in player["goods"]:
+                    player["goods"][good] += 1
+                else:
+                    player["goods"][good] = 1
+                print("Bought " + good + ".")
+                if player["location"] == "exchange":
+                    if player["credits"] - 5 < 0:
+                        print("\nYou were unable to pay the trade tax")
+                        print("so your ship has been impounded.")
+                        game_running = False
+                    else:
+                        player["credits"] -= 5
+                        print("Trade tax of 5 credits paid.")
             else:
-                player["goods"][good] = 1
-            print("Bought " + good)
+                print("Not enough credits.")
+    else:
+        print("\nNo traders available.")
+    input("\nPress EXE to continue...")
+
+def sell_goods(player):
+    if celastra_exchange["traders"] > 0:
+        global game_running
+        if not player["goods"]:
+            print("\nNo goods to sell.")
+            return
+        good = random.choice(list(player["goods"].keys()))
+        price = random.randint(50, 200)
+        trader_name = random.choice(trader_names)
+        print("\n" + trader_name +" is buying " + good + " for " + str(price) + " credits.")
+        print("Sell " + good + "?")
+        celastra_exchange["traders"] -= 1
+        if input("1. Yes 2. No: ") == "1":
+            player["credits"] += price
+            player["goods"][good] -= 1
+            if player["goods"][good] == 0:
+                del player["goods"][good]
+            print("Sold " + good  + ".")
             if player["location"] == "exchange":
                 if player["credits"] - 5 < 0:
                     print("\nYou were unable to pay the trade tax")
@@ -54,35 +102,13 @@ def buy_goods(player):
                 else:
                     player["credits"] -= 5
                     print("Trade tax of 5 credits paid.")
-        else:
-            print("Not enough credits.")
-
-def sell_goods(player):
-    global game_running
-    if not player["goods"]:
-        print("\nNo goods to sell.")
-        return
-    good = random.choice(list(player["goods"].keys()))
-    price = random.randint(50, 200)
-    print("\nSell " + good + " for " + str(price) + " credits?")
-    if input("1. Yes 2. No: ") == "1":
-        player["credits"] += price
-        player["goods"][good] -= 1
-        if player["goods"][good] == 0:
-            del player["goods"][good]
-        print("Sold " + good)
-        if player["location"] == "exchange":
-            if player["credits"] - 5 < 0:
-                print("\nYou were unable to pay the trade tax")
-                print("so your ship has been impounded.")
-                game_running = False
-            else:
-                player["credits"] -= 5
-                print("Trade tax of 5 credits paid.")
+    else:
+        print("\nNo traders available.")
+    input("\nPress EXE to continue...")
 
 def upgrade_ship(player):
     print_menu("\nUpgrade Ship", ["Engine", "Hold", "Shields", "Weapons"])
-    choice = input("Choose upgrade: ")
+    choice = input(": ")
     if choice == "1" and player["credits"] >= 500:
         player["engine"] += 1
         player["credits"] -= 500
@@ -193,8 +219,9 @@ def exploration(player):
         print("so your ship has been impounded.")
         game_running = False
     else:
+        celastra_exchange["traders"] = random.randint(6, 10)
         player["credits"] -= 20
-        print("\nDocked at the Galactic Exchange.")
+        print("\nDocked at the Celastra Exchange.")
         print("Docking fees: 20 credits")
         input("\nPress EXE to continue...")
 
@@ -203,7 +230,8 @@ def instructions():
     print("\nYou take the role of a space")
     print("trader named Reynolds,")
     print("commanding your starship")
-    print("Intrepid.")
+    print("Intrepid. Your base is at")
+    print("the Celastra Exchange space station.")
     input("\nPress EXE to continue...")
     print("\nYour journey begins at the")
     print("age of 30, and the game")
@@ -211,24 +239,26 @@ def instructions():
     print("60, from the Trading Guild.")
     print("\nDue to hibernation you only")
     print("age when docked at the")
-    print("Galactic Exchange. Your")
+    print("Celastra Exchange. Your")
     print("final score is based on the")
     print("credits you have accrued.")
     input("\nPress EXE to continue...")
     print("\nHow to Play:")
     print("\n1. Start with 1000 credits.")
     print("2. At each turn, you'll visit")
-    print("the Galactic Exchange where you can:")
+    print("the Celastra Exchange where you can:")
     print("\n - Buy Goods")
     print(" - Sell Goods")
     print(" - Upgrade your Ship")
+    print("\nOn each visit to the Exchange a")
+    print("selection of trades will be available.")
     input("\nPress EXE to continue...")
     print("\nYou will have to pay a tax")
     print("of 5 credits on each trade")
-    print("at the Galactic Exchange.")
+    print("at the Celastra Exchange.")
     print("\nYou will also have to pay")
     print("a docking fee of 20 credits")
-    print("when docking at the Galactic")
+    print("when docking at the Celastra")
     print("Exchange. Your ship will be")
     print("impounded if you cannot pay.")
     input("\nPress EXE to continue...")
@@ -300,16 +330,17 @@ def ship_computer(player):
         print("\nExiting the game...")
         game_running = False
 
-def galactic_exchange(player):
+def exchange(player):
     global game_running
     # Display captain and starship names
     print("\nCaptain: " + player["captain_name"])
     print("Starship: " + player["ship_name"])
     print("Age: " + str(player["age"]))
     print("Credits: " + str(player["credits"]))
+    print("")
 
     # Display the menu options
-    print_menu("Galactic Exchange", ["Buy Goods", "Sell Goods", "Upgrade Ship", "Ship Computer", "Launch Ship"])
+    print_menu("Celastra Exchange", ["Buy Goods", "Sell Goods", "Upgrade Ship", "Ship Computer", "Launch Ship"])
 
     # Get user input
     choice = input(": ")
@@ -327,7 +358,7 @@ def galactic_exchange(player):
         if player["age"] == 60:
             game_running = False
 
-# Initialize player as a dictionary instead of dataclass
+# Initialize player as a dictionary
 player = {
     "age": 30,
     "location": "exchange",
@@ -341,6 +372,12 @@ player = {
     "captain_name": "Reynolds"
 }
 
+# Initialize Celastra Exchange as a dictionary
+celastra_exchange = {
+    "traders": random.randint(6, 10)
+}
+
+
 print("Welcome to Space Trader !")
 print("\nYour mission is to explore")
 print("the galaxy and make your")
@@ -348,7 +385,7 @@ print("fortune.")
 input("\nPress EXE to continue...")
 
 while game_running :
-    galactic_exchange(player)
+    exchange(player)
 
 print("\nGame over! You retired")
 print("Final score: " + str(floor((player["age"] * player["credits"])/1000)))
