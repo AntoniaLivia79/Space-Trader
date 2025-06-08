@@ -36,356 +36,483 @@ trader_names = [
     "Astrid Moonglow", "Rigel Amberwing", "Celeste Horizon", "Tiberius Void"
 ]
 
-game_running = True
+game = {
+    "player": {
+        "age": 30, "credits": 1000, "engine": 1, "hold": 5,
+        "shields": 1, "weapons": 1, "goods": {},
+        "ship_name": "Intrepid", "captain_name": "Reynolds",
+        "location": "exchange",
+        "purchase_records": {},  # Store purchase prices of goods
+        "total_profit": 0,       # Running total of all profits/losses
+        "trades_completed": 0    # Number of trades completed
+    },
+    "exchange": {"traders": random.randint(6, 10)},
+    "running": True
+}
 
-def print_menu(title, options):
-    print(title)
-    for i, option in enumerate(options, 1):
-        print(str(i) + ". " + option)
-    print("Choose option 1-" + str(len(options)))
+def menu(title, options):
+    print("\n" + title)
+    for i, opt in enumerate(options, 1):
+        print(str(i) + ". " + opt)
+    return input("Choose (1-" + str(len(options)) + "): ")
 
-def buy_goods(player):
-    if celastra_exchange["traders"] > 0:
-        global game_running
-        global goods_list
-        good = random.choice(goods_list)
-        price = random.randint(20, 300)
-        trader_name = random.choice(trader_names)
-        print("\n" + trader_name +" is selling " + good + " for " + str(price) + " credits.")
-        print("Buy " + good + "?")
-        celastra_exchange["traders"] -= 1
-        if input("1. Yes 2. No: ") == "1":
-            if player["credits"] >= price:
-                player["credits"] -= price
-                if good in player["goods"]:
-                    player["goods"][good] += 1
-                else:
-                    player["goods"][good] = 1
-                print("Bought " + good + ".")
-                if player["location"] == "exchange":
-                    if player["credits"] - 5 < 0:
-                        print("\nYou were unable to pay the trade tax")
-                        print("so your ship has been impounded.")
-                        game_running = False
-                    else:
-                        player["credits"] -= 5
-                        print("Trade tax of 5 credits paid.")
-            else:
-                print("Not enough credits.")
-    else:
-        print("\nNo traders available.")
+def cap(s): return s[0].upper() + s[1:].lower() if s else ""
+
+def starfield():
+    print("\n  *  .  *")
+    print(" . * . * .")
+    print("*  .  *  .")
+    print(" . * . * *")
+
+def casino():
+    p = game["player"]
+    print("\n===== Quantum Casino =====")
+    print("Welcome to the Quantum Casino")
+    print("Here you can test your luck")
+    print("with our Asteroid game.")
+    print("Your ship must navigate through")
+    print("an asteroid field.")
+    print("Choose a navigation path (1-3)")
+    print("and bet credits.")
+    print("Choosing the safe path, doubles your bet!")
+    print("If you hit an asteroid, you lose your bet.")
     input("\nPress EXE to continue...")
 
-def sell_goods(player):
-    if celastra_exchange["traders"] > 0:
-        global game_running
-        if not player["goods"]:
-            print("\nNo goods to sell.")
-            return
-        good = random.choice(list(player["goods"].keys()))
-        price = random.randint(50, 200)
-        trader_name = random.choice(trader_names)
-        print("\n" + trader_name +" is buying " + good + " for " + str(price) + " credits.")
-        print("Sell " + good + "?")
-        celastra_exchange["traders"] -= 1
-        if input("1. Yes 2. No: ") == "1":
-            player["credits"] += price
-            player["goods"][good] -= 1
-            if player["goods"][good] == 0:
-                del player["goods"][good]
-            print("Sold " + good  + ".")
-            if player["location"] == "exchange":
-                if player["credits"] - 5 < 0:
-                    print("\nYou were unable to pay the trade tax")
-                    print("so your ship has been impounded.")
-                    game_running = False
-                else:
-                    player["credits"] -= 5
-                    print("Trade tax of 5 credits paid.")
-    else:
-        print("\nNo traders available.")
-    input("\nPress EXE to continue...")
+    while True:
+        print("\nYour credits: " + str(p["credits"]))
 
-def upgrade_ship(player):
-    print_menu("\nUpgrade Ship", ["Engine", "Hold", "Shields", "Weapons"])
-    choice = input(": ")
-    if choice == "1" and player["credits"] >= 500:
-        player["engine"] += 1
-        player["credits"] -= 500
-        print("Upgraded engine!")
-    elif choice == "2" and player["credits"] >= 300:
-        player["hold"] += 1
-        player["credits"] -= 300
-        print("Upgraded hold!")
-    elif choice == "3" and player["credits"] >= 400:
-        player["shields"] += 1
-        player["credits"] -= 400
-        print("Upgraded shields!")
-    elif choice == "4" and player["credits"] >= 400:
-        player["weapons"] += 1
-        player["credits"] -= 400
-        print("Upgraded weapons!")
-    else:
-        print("Not enough credits.")
+        bet_str = input("Place your bet (0 to exit): ")
+        try:
+            bet = int(bet_str)
+        except ValueError:
+            print("Invalid bet. Please enter a number.")
+            continue
 
-def decrement_stat(player, stat):
-    global game_running
-    """ Decrement a ship's stat and ensure it doesn't go below 0. Handle the 'hold' and 'engine' cases. """
-    if stat == "engine":
-        player["engine"] = max(0, player["engine"] - 1)
-        if player["engine"] == 0:
-            print("With no working engines, you are now adrift in the cold void of space. Game over!")
-            game_running = False
-    elif stat == "hold":
-        player["hold"] = max(0, player["hold"] - 1)
-        total_goods = sum(player["goods"].values())
-        if total_goods > player["hold"]:
-            jettison_goods(player)
-    else:
-        player[stat] = max(0, player[stat] - 1)
+        if bet <= 0:
+            print("Leaving the casino...")
+            break
 
-    print(stat + " has been reduced by 1.")
+        if bet > p["credits"]:
+            print("You don't have enough credits!")
+            continue
 
-def jettison_goods(player):
-    """ Remove random goods until the number of goods held matches the hold capacity. """
-    total_goods = sum(player["goods"].values())
-    while total_goods > player["hold"]:
-        good = random.choice(list(player["goods"].keys()))
-        player["goods"][good] -= 1
-        if player["goods"][good] == 0:
-            del player["goods"][good]
-        total_goods -= 1
-    print("Due to hold damage, goods had to be jettisoned.")
+        print("\nChoose your navigation path:")
+        print("1. Alpha Route")
+        print("2. Beta Route")
+        print("3. Gamma Route")
+        path = input("Select path (1-3): ")
 
-def pirate_attack(player):
-    global pirate_names
-    pirate = random.choice(pirate_names)
-    print("\nPirate " + pirate + " attacks!")
+        if path not in ["1", "2", "3"]:
+            print("Invalid selection. Please choose 1, 2, or 3.")
+            continue
 
-    # Decide battle outcome based on the player's weapons
-    if player["weapons"] > random.randint(0, 2):
-        print("You won the battle!")
-    else:
-        # Check if the player escapes using shields
-        if player["shields"] > random.randint(0, 2):
-            print("You escaped the battle,")
-            print("but your ship took some damage!")
-        else:
-            print("Lost the battle! Pirates stole")
-            print("your goods and damaged your ship.")
-            player["goods"].clear()  # Player loses all goods if they fail to escape
+        safe_path = str(random.randint(1, 3))
 
-        # In both cases (loss or escape), decrement a random ship statistic
-        stat = random.choice(["engine", "hold", "shields", "weapons"])
-        decrement_stat(player, stat)
-
-def trader_encounter(player):
-    print("\nMet a trader!")
-    buy_goods(player)
-
-def planet_encounter(player):
-    global planet_names
-    planet = random.choice(planet_names)
-    print("\nLanded on " + planet + ".")
-    outcome = random.choice(["boon", "fight", "trade"])
-    if outcome == "boon":
-        print("Received a boon!")
-        upgrade = random.choice(["engine", "hold", "shields", "weapons"])
-        player[upgrade] += 1
-        print(upgrade + " has been increased by 1!")
-    elif outcome == "fight":
-        pirate_attack(player)
-    elif outcome == "trade":
-        trader_encounter(player)
-
-def exploration(player):
-    global game_running
-    player["exchange"] = "space"
-    for _ in range(player["engine"]):
-        encounter = random.choice(["pirate", "trader", "planet", "empty"])
-        if encounter == "pirate":
-            pirate_attack(player)
-        elif encounter == "trader":
-            trader_encounter(player)
-        elif encounter == "planet":
-            planet_encounter(player)
-        elif encounter == "empty":
-            print("\nNothing here...")
-        input("\nPress EXE to continue exploring...")
-    print("\nDocking back at the Exchange...")
-    player["exchange"] = "exchange"
-    if player["credits"] - 20 < 0:
-        print("\nYou were unable to pay docking fees")
-        print("so your ship has been impounded.")
-        game_running = False
-    else:
-        celastra_exchange["traders"] = random.randint(6, 10)
-        player["credits"] -= 20
-        print("\nDocked at the Celastra Exchange.")
-        print("Docking fees: 20 credits")
+        print("\nNavigating asteroid field...")
+        starfield()
         input("\nPress EXE to continue...")
 
-def instructions():
-    print("\nAbout the Game:")
-    print("\nYou take the role of a space")
-    print("trader named Reynolds,")
-    print("commanding your starship")
-    print("Intrepid. Your base is at")
-    print("the Celastra Exchange space station.")
-    input("\nPress EXE to continue...")
-    print("\nYour journey begins at the")
-    print("age of 30, and the game")
-    print("ends when you retire, aged")
-    print("60, from the Trading Guild.")
-    print("\nDue to hibernation you only")
-    print("age when docked at the")
-    print("Celastra Exchange. Your")
-    print("final score is based on the")
-    print("credits you have accrued.")
-    input("\nPress EXE to continue...")
-    print("\nHow to Play:")
-    print("\n1. Start with 1000 credits.")
-    print("2. At each turn, you'll visit")
-    print("the Celastra Exchange where you can:")
-    print("\n - Buy Goods")
-    print(" - Sell Goods")
-    print(" - Upgrade your Ship")
-    print("\nOn each visit to the Exchange a")
-    print("selection of trades will be available.")
-    input("\nPress EXE to continue...")
-    print("\nYou will have to pay a tax")
-    print("of 5 credits on each trade")
-    print("at the Celastra Exchange.")
-    print("\nYou will also have to pay")
-    print("a docking fee of 20 credits")
-    print("when docking at the Celastra")
-    print("Exchange. Your ship will be")
-    print("impounded if you cannot pay.")
-    input("\nPress EXE to continue...")
-    print("\n3. During exploration, you'll")
-    print("face 1 to 4 encounters based")
-    print("on your engine stat:")
-    print("\n - Pirate Attack")
-    print(" - Meet a Trader")
-    print(" - Explore a Planet (you may")
-    print("   encounter pirates, traders")
-    print("   or receive a boon)")
-    print(" - Explore empty space")
-    input("\nPress EXE to continue...")
-    print("\nShip Stats:")
-    print("\nEngine: Number of encounters")
-    print("per turn.")
-    print("Hold: How many goods you can")
-    print("carry.")
-    print("Shields: Helps defend your")
-    print("ship in battle.")
-    print("Weapons: Affects your")
-    print("offensive power in battles.")
-    input("\nPress EXE to return to the game")
+        if path == safe_path:
+            winnings = bet * 2
+            p["credits"] += bet
+            print("\nSuccessful navigation!")
+            print("You found a safe path.")
+            print("You won " + str(bet) + " cr !")
+            print("Total winnings: " + str(winnings) + " cr")
+        else:
+            p["credits"] -= bet
+            print("\nCRASH! Your ship hit an asteroid")
+            print("on the " + ["Alpha", "Beta", "Gamma"][int(path) - 1] + " Route!")
+            print("The safe route was: " + ["Alpha", "Beta", "Gamma"][int(safe_path) - 1] + " Route")
+            print("You lost " + str(bet) + " credits.")
 
-def view_ship_status(player):
-    print("Ship: " + player["ship_name"])
-    print("Captain: " + player["captain_name"])
-    print("Age: " + str(player["age"]))
-    print("Credits: " + str(player["credits"]))
-    print("Engine: " + str(player["engine"]))
-    print("Hold: " + str(player["hold"]))
-    print("Shields: " + str(player["shields"]))
-    print("Weapons: " + str(player["weapons"]))
+        if p["credits"] <= 0:
+            print("\nYou've lost all your credits!")
+            print("The casino security escorts you out.")
+            break
 
-    # Handle the goods display
-    if player["goods"]:
-        print("Goods:")
-        for k, v in player["goods"].items():
-            print(" - " + k + " x" + str(v))
+        again = input("\nPlay again? 1. Yes 2. No: ")
+        if again != "1":
+            print("Thanks for playing at the Quantum Casino!")
+            break
+
+    input("\nPress EXE to return to the Exchange...")
+
+
+def manage_ship_stat(stat, increase=False):
+    p = game["player"]
+    if increase:
+        p[stat] += 1
+        return cap(stat) + " increased to " + str(p[stat])
+
+    p[stat] = max(0, p[stat] - 1)
+    if stat == "engine" and p[stat] == 0:
+        print("With no engines, you drift in space. Game over!")
+        game["running"] = False
+    elif stat == "hold":
+        # Jettison goods if needed
+        total = sum(p["goods"].values())
+        while total > p["hold"] and p["goods"]:
+            good = random.choice(list(p["goods"].keys()))
+            p["goods"][good] -= 1
+            # Record the loss in profit
+            if good in p["purchase_records"] and p["purchase_records"][good]:
+                # Get the oldest purchase (FIFO)
+                purchase_id = list(p["purchase_records"][good].keys())[0]
+                purchase_price = p["purchase_records"][good][purchase_id]
+                # Count jettisoned goods as a loss
+                p["total_profit"] -= purchase_price
+                # Remove the purchase record
+                del p["purchase_records"][good][purchase_id]
+                if not p["purchase_records"][good]:
+                    del p["purchase_records"][good]
+            if p["goods"][good] == 0:
+                del p["goods"][good]
+            total -= 1
+            print("Jettisoned " + good + " due to hold damage")
+    return cap(stat) + " reduced to " + str(p[stat])
+
+def trade(is_buy=True):
+    p, e = game["player"], game["exchange"]
+
+    if e["traders"] <= 0:
+        print("\nNo traders available")
+        input("\nPress EXE to continue...")
+        return
+
+    e["traders"] -= 1
+
+    if is_buy:
+        good = random.choice(goods_list)
+        price = random.randint(20, 300)
+        action, verb = "Buy", "selling"
     else:
-        print("Goods: None")
+        if not p["goods"]:
+            print("\nNo goods to sell")
+            input("\nPress EXE to continue...")
+            return
+        good = random.choice(list(p["goods"].keys()))
+        price = random.randint(50, 200)
+        action, verb = "Sell", "buying"
+
+    trader = random.choice(trader_names)
+    print("\n" + trader + " is " + verb + ":")
+    print(good + " for " + str(price) + " cr")
+    print(action + " " + good + "?")
+
+    if input("1. Yes 2. No: ") != "1":
+        input("\nPress EXE to continue...")
+        return
+
+    # Handle buy/sell
+    if is_buy:
+        if p["credits"] < price:
+            print("Not enough credits")
+            input("\nPress EXE to continue...")
+            return
+        p["credits"] -= price
+        p["goods"][good] = p["goods"].get(good, 0) + 1
+        # Record purchase for profit tracking
+        if good not in p["purchase_records"]:
+            p["purchase_records"][good] = {}
+        # Create a unique ID for this purchase
+        purchase_id = good + "_" + str(len(p["purchase_records"][good]) + 1)
+        p["purchase_records"][good][purchase_id] = price
+
+        print("Bought " + good)
+    else:
+        # Calculate profit for this transaction
+        if good in p["purchase_records"] and p["purchase_records"][good]:
+            # Get the oldest purchase (FIFO)
+            purchase_ids = list(p["purchase_records"][good].keys())
+            oldest_purchase_id = purchase_ids[0]
+            purchase_price = p["purchase_records"][good][oldest_purchase_id]
+            # Calculate profit and update tracking
+            trade_profit = price - purchase_price
+            p["total_profit"] += trade_profit
+            p["trades_completed"] += 1
+            p["credits"] += price
+
+            # Remove the purchase record
+            del p["purchase_records"][good][oldest_purchase_id]
+            if not p["purchase_records"][good]:
+                del p["purchase_records"][good]
+
+            # Remove good from inventory
+            p["goods"][good] -= 1
+            if p["goods"][good] == 0:
+                del p["goods"][good]
+
+            # Display the profit information
+            profit_text = "profit" if trade_profit >= 0 else "loss"
+            print("Sold " + good)
+            print("for a " + profit_text + " of " + str(abs(trade_profit)) + " cr")
+        else:
+            # Fallback if we don't have purchase records (shouldn't happen)
+            p["credits"] += price
+            p["goods"][good] -= 1
+            if p["goods"][good] == 0:
+                del p["goods"][good]
+            print("Sold " + good)
+
+    # Exchange tax
+    if p["location"] == "exchange":
+        if p["credits"] < 5:
+            print("\nCan't pay trade tax. Ship impounded.")
+            game["running"] = False
+            return
+        p["credits"] -= 5
+        print("Trade tax of 5 cr paid")
+
     input("\nPress EXE to continue...")
 
-def register_ship_name(player):
-    new_name = input("Enter your new ship name: ")
-    player["ship_name"] = new_name
-    print("Ship renamed to " + player["ship_name"])
+def handle_encounter(type_):
+    p = game["player"]
 
-def register_captain_name(player):
-    new_name = input("Enter your new captain name: ")
-    player["captain_name"] = new_name
-    print("Captain renamed to " + player["captain_name"])
+    if type_ == "empty":
+        starfield()
+        print("\nNothing here...")
+        return
 
-def ship_computer(player):
+    if type_ == "trader":
+        print("\nMet a trader!")
+        trade(True)
+        return
+
+    if type_ == "planet":
+        planet = random.choice(planet_names)
+        print("\nLanded on " + planet)
+        outcome = random.choice(["boon", "fight", "trade"])
+
+        if outcome == "boon":
+            stat = random.choice(["engine", "hold", "shields", "weapons"])
+            print("Received a boon! " + manage_ship_stat(stat, True))
+        elif outcome == "fight":
+            handle_encounter("pirate")
+        else:
+            handle_encounter("trader")
+        return
+
+    if type_ == "pirate":
+        pirate = random.choice(pirate_names)
+        print("\nPirate " + pirate + " attacks!")
+
+        if p["weapons"] > random.randint(0, 2):
+            print("You won the battle!")
+            return
+
+        if p["shields"] > random.randint(0, 2):
+            print("You escaped with damage!")
+        else:
+            print("Lost! Pirates stole your goods")
+            # Record losses from all stolen goods
+            for good, quantity in p["goods"].items():
+                if good in p["purchase_records"]:
+                    for purchase_id, price in p["purchase_records"][good].items():
+                        p["total_profit"] -= price
+            # Clear goods and purchase records
+            p["goods"].clear()
+            p["purchase_records"].clear()
+
+        stat = random.choice(["engine", "hold", "shields", "weapons"])
+        print(manage_ship_stat(stat))
+
+def explore():
     global game_running
-    print_menu("Ship Computer",
-               ["Instructions", "View Ship Status", "Register Ship Name", "Register Captain Name", "Exit Game"])
-    log_choice = input(": ")
+    p = game["player"]
+    p["location"] = "space"
 
-    if log_choice == "1":
-        instructions()
-    elif log_choice == "2":
-        view_ship_status(player)
-    elif log_choice == "3":
-        register_ship_name(player)
-    elif log_choice == "4":
-        register_captain_name(player)
-    elif log_choice == "5":
-        print("\nExiting the game...")
-        game_running = False
+    for _ in range(p["engine"]):
+        if not game["running"]:
+            return
 
-def exchange(player):
-    global game_running
-    # Display captain and starship names
-    print("\nCaptain: " + player["captain_name"])
-    print("Starship: " + player["ship_name"])
-    print("Age: " + str(player["age"]))
-    print("Credits: " + str(player["credits"]))
-    print("")
+        handle_encounter(random.choice(["pirate", "trader", "planet", "empty"]))
+        input("\nPress EXE to continue exploring...")
 
-    # Display the menu options
-    print_menu("Celastra Exchange", ["Buy Goods", "Sell Goods", "Upgrade Ship", "Ship Computer", "Launch Ship"])
+    print("\nDocking at Exchange...")
+    p["location"] = "exchange"
 
-    # Get user input
-    choice = input(": ")
+    if p["credits"] < 20:
+        print("Can't pay docking fees. Ship impounded.")
+        game["running"] = False
+        return
+
+    game["exchange"]["traders"] = random.randint(6, 10)
+    p["credits"] -= 20
+    print("Docked. Paid 20 cr fee")
+    p["age"] += 1
+
+    if p["age"] >= 60:
+        game["running"] = False
+
+    input("\nPress EXE to continue...")
+
+def view_trade_stats():
+    p = game["player"]
+    print("\nTrading Statistics:")
+    print("Total Profit/Loss: " + str(p["total_profit"]) + " cr")
+    print("Trades Completed: " + str(p["trades_completed"]))
+
+    if p["trades_completed"] > 0:
+        avg_profit = p["total_profit"] / p["trades_completed"]
+        print("Average Profit per Trade: " + str(floor(avg_profit * 10) / 10) + " cr")
+
+    # Show current inventory with purchase costs
+    if p["goods"]:
+        print("\nCurrent Inventory Values:")
+        total_inventory_value = 0
+
+        for good, quantity in p["goods"].items():
+            if good in p["purchase_records"]:
+                # Calculate average purchase price for this good
+                purchase_prices = [price for _, price in p["purchase_records"][good].items()]
+                if purchase_prices:
+                    avg_price = sum(purchase_prices) / len(purchase_prices)
+                    total_value = avg_price * quantity
+                    total_inventory_value += total_value
+                    print(good + " x" + str(quantity))
+                    print("(avg " + str(floor(avg_price)) + " cr each)")
+            else:
+                print(good + " x" + str(quantity) + " (unknown cost)")
+
+        print("Estimated inventory value: " + str(floor(total_inventory_value)) + " cr")
+
+
+def computer():
+    p = game["player"]
+    choice = menu("Ship Computer", ["Instructions", "Ship Status", "Trading Stats", "Rename Ship", "Rename Captain", "Exit Game"])
+
     if choice == "1":
-        buy_goods(player)
+        print("\nSpace Trader: Trade goods, upgrade ship,")
+        print("explore space.")
+        print("Engine: Encounter more.")
+        print("Hold: Cargo capacity.")
+        print("Shields & weapons: Battle survival.")
+        print("Taxes: 5cr/trade, 20cr docking.")
+        print("Age 60: retire.")
+
     elif choice == "2":
-        sell_goods(player)
+        print("\nShip: " + p["ship_name"] + ", Captain: " + p["captain_name"])
+        print("Age: " + str(p["age"]) + ", Credits: " + str(p["credits"]))
+        print("Engine: " + str(p["engine"]) + ", Hold: " + str(p["hold"]))
+        print("Shields: " + str(p["shields"]) + ", Weapons: " + str(p["weapons"]))
+
+        if p["goods"]:
+            goods_list = []
+            for k, v in p["goods"].items():
+                goods_list.append(k + " x" + str(v))
+            print("Goods: ")
+            for goods in goods_list:
+                print(goods)
+        else:
+            print("Goods: None")
+
     elif choice == "3":
-        upgrade_ship(player)
+        view_trade_stats()
+
     elif choice == "4":
-        ship_computer(player)
+        p["ship_name"] = input("\nNew ship name: ")
+        print("Ship renamed to " + p["ship_name"])
+
+
     elif choice == "5":
-        exploration(player)
-        player["age"] += 1
-        if player["age"] == 60:
-            game_running = False
+        p["captain_name"] = input("\nNew captain name: ")
+        print("Captain renamed to " + p["captain_name"])
 
-# Initialize player as a dictionary
-player = {
-    "age": 30,
-    "location": "exchange",
-    "credits": 1000,
-    "engine": 1,
-    "hold": 5,
-    "shields": 1,
-    "weapons": 1,
-    "goods": {},
-    "ship_name": "Intrepid",
-    "captain_name": "Reynolds"
-}
+    elif choice == "6":
+        print("\nExiting game...")
+        game["running"] = False
+        return
 
-# Initialize Celastra Exchange as a dictionary
-celastra_exchange = {
-    "traders": random.randint(6, 10)
-}
+    input("\nPress EXE to continue...")
+
+def exchange():
+    p = game["player"]
+    p["location"] = "exchange"
+
+    print("\nCaptain: " + p["captain_name"])
+    print("Starship: " + p["ship_name"])
+    print("Age: " + str(p["age"]) + ", Credits: " + str(p["credits"]))
+
+    choice = menu("===== Celastra Exchange ======", ["Buy Goods", "Sell Goods", "Upgrade Ship", "Ship Computer", "Casino", "Launch Ship"])
+
+    if choice == "1":
+        trade(True)
+    elif choice == "2":
+        trade(False)
+    elif choice == "3":
+        upgrades = {"1": ("engine", 500), "2": ("hold", 300),
+                    "3": ("shields", 400), "4": ("weapons", 400)}
+
+        opt = menu("Upgrade Ship", ["Engine", "Hold", "Shields", "Weapons"])
+
+        if opt in upgrades:
+            stat, cost = upgrades[opt]
+            if p["credits"] >= cost:
+                p[stat] += 1
+                p["credits"] -= cost
+                print("Upgraded " + cap(stat) + "!")
+            else:
+                print("Not enough credits")
+            input("\nPress EXE to continue...")
+    elif choice == "4":
+        computer()
+    elif choice == "5":
+        casino()
+    elif choice == "6":
+        explore()
+
+def calculate_final_score():
+    p = game["player"]
+    # Profit modifier (avoid division by zero)
+    profit_modifier = max(1, p["total_profit"]) if p["total_profit"] > 0 else 1
+    # Enhanced score formula: (Age * Credits * Total Profit) / 10000
+    # We'll use a minimum value of 1 for profit to avoid reducing scores for players with losses
+    enhanced_score = floor((p["age"] * p["credits"] * profit_modifier) / 10000)
+
+    # Player rank based on final score
+    rank = "Space Rookie"
+    if enhanced_score >= 50000:
+        rank = "Legendary Space Mogul"
+    elif enhanced_score >= 30000:
+        rank = "Galactic Trade Master"
+    elif enhanced_score >= 15000:
+        rank = "Interstellar Merchant"
+    elif enhanced_score >= 7500:
+        rank = "Established Trader"
+    elif enhanced_score >= 3000:
+        rank = "Skilled Trader"
+    elif enhanced_score >= 1000:
+        rank = "Trader Apprentice"
+
+    return {
+        "enhanced_score": enhanced_score,
+        "rank": rank
+    }
 
 
-print("Welcome to Space Trader !")
-print("\nYour mission is to explore")
-print("the galaxy and make your")
-print("fortune.")
+print("Welcome to Space Trader v0.0.1!")
+print("\nYour mission: explore space")
+print("and make your fortune")
 input("\nPress EXE to continue...")
 
-while game_running :
-    exchange(player)
+while game["running"]:
+    exchange()
 
-print("\nGame over! You retired")
-print("Final score: " + str(floor((player["age"] * player["credits"])/1000)))
+p = game["player"]
+print("\nGame over! You retired at age " + str(p["age"]))
+print("\nTrading Career Summary:")
+print("Total Credits: " + str(p["credits"]) + " cr")
+print("Total Profit: " + str(p["total_profit"]) + " cr")
+print("Trades Completed: " + str(p["trades_completed"]))
+
+if p["trades_completed"] > 0:
+    avg_profit = p["total_profit"] / p["trades_completed"]
+    print("Average Profit per Trade: " + str(floor(avg_profit * 10) / 10) + " cr")
+
+score_data = calculate_final_score()
+
+print("\nFinal Score: " + str(score_data["enhanced_score"]))
+print("Trader Rank:")
+print(score_data["rank"])
+

@@ -19,17 +19,20 @@ Your journey begins at the age of 30, and the game ends when you retire, aged 60
 - Engage in battles with pirates or negotiate trades.
 - Manage your resources and goods with the limited hold of your ship.
 - Name your ship and captain.
+- Gamble at the Quantum Casino
+- Receive a rank on retirement
 
 ---
 
 ## How to Play
 
 1. Start with 1000 credits.
-2. At each turn, you'll visit the Galactic Exchange where you can:
+2. At each turn, you'll visit the Celastra Exchange space station where you can:
    - Buy Goods
    - Sell Goods
    - Upgrade your Ship
-   - Edit the Captain's Log - Save/Load your game, change captain name or ship name and view your stats
+   - Enter the Quantum Casino
+   - Use the Ship Computer - Change captain name or ship name and view your stats
    - Launch your ship to begin exploration
 3. During exploration, you'll face 1 to 4 encounters based on your engine stat:
    - Pirate Attack
