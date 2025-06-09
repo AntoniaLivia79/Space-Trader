@@ -175,7 +175,7 @@ def manage_ship_stat(stat, increase=False):
 def trade(is_buy=True):
     p, e = game["player"], game["exchange"]
 
-    if e["traders"] <= 0:
+    if e["traders"] <= 0 and p["location"] == "exchange":
         print("\nNo traders available")
         input("\nPress EXE to continue...")
         return
@@ -355,7 +355,7 @@ def view_trade_stats():
 
     if p["trades_completed"] > 0:
         avg_profit = p["total_profit"] / p["trades_completed"]
-        print("Average Profit per Trade: " + str(floor(avg_profit * 10) / 10) + " cr")
+        print("Average Profit per Trade: " + str(floor(floor(avg_profit * 10) / 10)) + " cr")
 
     # Show current inventory with purchase costs
     if p["goods"]:
