@@ -1,1 +1,2 @@
 # requirements.txt
+bcrypt>=4.0.1
