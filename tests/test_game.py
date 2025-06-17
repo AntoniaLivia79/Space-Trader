@@ -7,7 +7,7 @@ import random
 from game import (
     Player, Game, menu, cap, starfield, casino, manage_ship_stat, 
     trade, handle_encounter, explore, view_trade_stats, computer,
-    log_game, exchange, calculate_final_score
+    log_game, exchange, calculate_final_score, bounty_office
 )
 
 class TestPlayer(unittest.TestCase):
@@ -245,5 +245,164 @@ class TestEncounters(unittest.TestCase):
         handle_encounter(game, "pirate")
         mock_print.assert_any_call("You won the battle!")
 
-if __name__ == '__main__':
-    unittest.main()
+class TestBountySystem(unittest.TestCase):
+    def test_player_bounty_attributes(self):
+        """Test that Player class has the new bounty attributes"""
+        player = Player()
+        self.assertEqual(player.bounty_points, 0)
+        self.assertEqual(player.total_bounty_earned, 0)
+        self.assertEqual(player.bounty_redeemed, 0)
+    
+    @patch('random.choice', return_value="Blackclaw")
+    @patch('random.randint', side_effect=[0, 2])  # Ensure combat win, then set bounty reward
+    @patch('builtins.print')
+    def test_pirate_encounter_awards_bounty(self, mock_print, mock_randint, mock_choice):
+        """Test that defeating a pirate awards bounty points"""
+        game = Game()
+        game.player.weapons = 3  # Ensure victory
+        
+        handle_encounter(game, "pirate")
+        
+        # Check bounty awarded (2 from our mocked random.randint)
+        self.assertEqual(game.player.bounty_points, 2)
+        self.assertEqual(game.player.total_bounty_earned, 2)
+        mock_print.assert_any_call("Bounty awarded: 2 points")
+    
+    @patch('builtins.input', side_effect=["1"])  # Choose to redeem points
+    @patch('builtins.print')
+    def test_bounty_office_redemption(self, mock_print, mock_input):
+        """Test redeeming bounty points at the bounty office"""
+        game = Game()
+        game.player.bounty_points = 5
+        game.player.credits = 1000
+        
+        bounty_office(game)
+        
+        # 5 points at 100 credits each = 500 credits
+        self.assertEqual(game.player.credits, 1500)
+        self.assertEqual(game.player.bounty_points, 0)
+        self.assertEqual(game.player.bounty_redeemed, 5)
+        mock_print.assert_any_call("Redeemed 5 bounty points for 500 cr!")
+    
+    @patch('builtins.input', side_effect=["2"])  # Choose not to redeem points
+    @patch('builtins.print')
+    def test_bounty_office_no_redemption(self, mock_print, mock_input):
+        """Test choosing not to redeem bounty points"""
+        game = Game()
+        game.player.bounty_points = 5
+        game.player.credits = 1000
+        
+        bounty_office(game)
+        
+        # Values should remain unchanged
+        self.assertEqual(game.player.credits, 1000)
+        self.assertEqual(game.player.bounty_points, 5)
+        self.assertEqual(game.player.bounty_redeemed, 0)
+        mock_print.assert_any_call("Bounty points not redeemed.")
+    
+    @patch('builtins.print')
+    def test_bounty_office_no_points(self, mock_print):
+        """Test bounty office behavior when player has no bounty points"""
+        game = Game()
+        game.player.bounty_points = 0
+        
+        bounty_office(game)
+        
+        mock_print.assert_any_call("No bounty points to redeem.")
+    
+    def test_calculate_score_with_bounty(self):
+        """Test that bounty points properly contribute to final score"""
+        player = Player(
+            age=60, 
+            credits=5000, 
+            total_profit=2000, 
+            bounty_points=10,  # Unredeemed points
+            bounty_redeemed=5   # Redeemed points
+        )
+        
+        result = calculate_final_score(player)
+        
+        # Base score: (60 * 5000 * 2000) / 10000 = 60000
+        # Bounty contribution: (10 * 75) + (5 * 25) = 750 + 125 = 875
+        expected_score = 60000 + 875
+        
+        self.assertEqual(result["enhanced_score"], expected_score)
+        self.assertEqual(result["bounty_contribution"], 875)
+    
+    def test_pirate_types_difficulty_scaling(self):
+        """Test different pirate types based on player strength"""
+        # We'll need to patch the pirate_types selection logic
+        # and verify the correct type is selected based on player strength
+        
+        # First test: weak player encounters Smuggler
+        with patch('random.choice', return_value="Fang"):
+            with patch('random.randint', return_value=0):  # Always win combat
+                game = Game()
+                game.player.weapons = 1
+                game.player.shields = 1  # Total strength = 2
+                
+                # Need to check what prints to verify pirate type
+                with patch('builtins.print') as mock_print:
+                    handle_encounter(game, "pirate")
+                    # Check that a Smuggler pirate was encountered
+                    mock_print.assert_any_call("\nSmuggler Fang attacks!")
+        
+        # Second test: medium player encounters Raider
+        with patch('random.choice', return_value="Viper"):
+            with patch('random.randint', return_value=0):  # Always win combat
+                game = Game()
+                game.player.weapons = 2
+                game.player.shields = 2  # Total strength = 4
+                
+                with patch('builtins.print') as mock_print:
+                    handle_encounter(game, "pirate")
+                    # Check that a Raider pirate was encountered
+                    mock_print.assert_any_call("\nRaider Viper attacks!")
+        
+        # Third test: strong player encounters Warlord
+        with patch('random.choice', return_value="Blackclaw"):
+            with patch('random.randint', return_value=0):  # Always win combat
+                game = Game()
+                game.player.weapons = 3
+                game.player.shields = 3  # Total strength = 6
+                
+                with patch('builtins.print') as mock_print:
+                    handle_encounter(game, "pirate")
+                    # Check that a Warlord pirate was encountered
+                    mock_print.assert_any_call("\nWarlord Blackclaw attacks!")
+
+    def test_pirate_difficulty_affects_combat(self):
+        """Test that pirate difficulty affects combat outcomes"""
+        # For this test, we'll verify that pirate difficulty is properly 
+        # factored into the combat resolution
+        
+        # Test against Smuggler (difficulty 1)
+        with patch('random.choice', return_value="Fang"):
+            # Set weapons to 1 and randint to 1 (player should win because 1 > 1 is false)
+            with patch('random.randint', return_value=1):
+                game = Game()
+                game.player.weapons = 2
+                game.player.shields = 1  # Total strength = 3
+                
+                with patch('builtins.print') as mock_print:
+                    handle_encounter(game, "pirate")
+                    # Player should win
+                    mock_print.assert_any_call("You won the battle!")
+        
+        # Test against Warlord (difficulty 3)
+        with patch('random.choice', return_value="Blackclaw"):
+            # Set weapons to 2 and randint to 2 (player should lose because 2 > 2 is false)
+            with patch('random.randint', return_value=2):
+                game = Game()
+                game.player.weapons = 2
+                game.player.shields = 3  # Total strength = 5
+                
+                # Need additional patch for the damage resolution
+                with patch('game.manage_ship_stat') as mock_manage_stat:
+                    with patch('builtins.print') as mock_print:
+                        handle_encounter(game, "pirate")
+                        # Player should not see the "won battle" message
+                        with self.assertRaises(AssertionError):
+                            mock_print.assert_any_call("You won the battle!")
+                        # Should call manage_ship_stat for damage
+                        self.assertTrue(mock_manage_stat.called)

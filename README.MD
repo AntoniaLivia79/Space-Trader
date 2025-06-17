@@ -47,6 +47,34 @@ Your journey begins at the age of 30, and the game ends when you retire, aged 60
 - **Shields**: Helps defend your ship in battle.
 - **Weapons**: Affects your offensive power in battles.
 
+#### Earning Bounty Points
+- When you defeat pirates in combat, you'll earn bounty points based on the threat level
+- Different types of pirates offer different rewards:
+  - **Smugglers**: Lower difficulty but smaller rewards (1-2 points)
+  - **Raiders**: Medium difficulty with moderate rewards (2-4 points)
+  - **Warlords**: High difficulty but substantial rewards (3-6 points)
+- Your ship's combat capabilities (weapons and shields) determine which pirates you encounter
+- More formidable pirates appear as your ship becomes stronger
+
+#### Redeeming Bounty Points
+- Visit the **Bounty Office** at the Celastra Exchange to convert your bounty points into credits
+- The standard exchange rate is 100 credits per bounty point
+- All your current bounty points can be redeemed at once
+- Tactical decision: You must choose between immediate financial gain or saving points for a higher final score
+
+#### Strategic Considerations
+- **Unredeemed bounty points** contribute significantly more to your final score (75 points each)
+- **Redeemed bounty points** still add to your final score but at a reduced value (25 points each)
+- This creates a strategic trade-off between immediate financial needs and long-term score optimization
+
+#### Tracking Your Bounty Career
+- The game tracks your total bounty points earned throughout your career
+- At retirement, you'll receive a detailed breakdown of your bounty hunting achievements:
+  - Total bounty points earned
+  - Points redeemed for credits
+  - Remaining unredeemed points
+  - Overall contribution to your final score
+
 ## Installation
 
 ### Requirements
@@ -283,8 +311,4 @@ ports:
   - "3001:3000"  # Maps container port 3000 to host port 3001
 ```
 
-
 Enjoy your journey through the stars, Captain!
-
-
-
