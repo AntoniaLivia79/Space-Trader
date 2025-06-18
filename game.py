@@ -176,8 +176,6 @@ def bounty_office(game: Game) -> None:
     print("Here you can redeem bounty points")
     print("earned from defeating pirates.")
     print(f"Current bounty points: {p.bounty_points}")
-    print(f"Total bounty earned: {p.total_bounty_earned}")
-    print(f"Total bounty redeemed: {p.bounty_redeemed}")
 
     if p.bounty_points == 0:
         print("No bounty points to redeem.")
@@ -190,9 +188,9 @@ def bounty_office(game: Game) -> None:
 
     print(f"Exchange rate: 1 bounty point = {exchange_rate} cr")
     print(f"Total value: {total_value} cr")
-    print("Note: Unredeemed bounty points are worth more for your final score.")
+    print("Note: Redeem bounty points to increase your final score.")
 
-    choice = input(f"Redeem all {p.bounty_points} bounty points for {total_value} cr? (1. Yes 2. No): ")
+    choice = input(f"Redeem bounty points ? (1. Yes 2. No): ")
 
     if choice == "1":
         p.credits += total_value
@@ -470,7 +468,7 @@ def view_trade_stats(player: Player) -> None:
 def computer(game: Game) -> None:
     """Ship computer interface for various functions"""
     p = game.player
-    choice = menu("Ship Computer", ["Instructions", "Ship Status", "Trading Stats", "Rename Ship", "Rename Captain", "Exit Game"])
+    choice = menu("Ship Computer", ["Instructions", "Ship Status", "Trading Stats", "Bounty Stats", "Rename Ship", "Rename Captain", "Exit Game"])
 
     if choice == "1":
         print("\nSpace Trader: Trade goods, upgrade ship,")
@@ -500,16 +498,19 @@ def computer(game: Game) -> None:
 
     elif choice == "3":
         view_trade_stats(p)
-
+        
     elif choice == "4":
+        view_bounty_stats(p)
+
+    elif choice == "5":
         p.ship_name = input("\nNew ship name: ")
         print(f"Ship renamed to {p.ship_name}")
 
-    elif choice == "5":
+    elif choice == "6":
         p.captain_name = input("\nNew captain name: ")
         print(f"Captain renamed to {p.captain_name}")
 
-    elif choice == "6":
+    elif choice == "7":
         print("\nExiting game...")
         game.running = False
         return
@@ -577,34 +578,79 @@ def calculate_final_score(player: Player) -> dict:
     # Profit modifier (avoid division by zero)
     profit_modifier = max(1, player.total_profit) if player.total_profit > 0 else 1
     
-    # Bounty points calculation - unredeemed are worth more for scoring
-    unredeemed_bonus = player.bounty_points * 75  # 75 points per unredeemed bounty point
-    redeemed_bonus = player.bounty_redeemed * 25  # 25 points per redeemed bounty point
-    bounty_bonus = unredeemed_bonus + redeemed_bonus
+    # Simplified bounty points calculation - only count redeemed points
+    bounty_bonus = player.bounty_redeemed * 50  # 50 points per redeemed bounty point
     
     # Enhanced score formula: (Age * Credits * Total Profit) / 10000 + bounty bonuses
     enhanced_score = floor((player.age * player.credits * profit_modifier) / 10000) + bounty_bonus
 
-    # Player rank based on final score
-    rank = "Space Rookie"
+    # Separate trader score component (based on profits and trades)
+    trader_score = floor((player.age * player.credits * profit_modifier) / 10000)
+    
+    # Determine trader rank based on trading performance
+    trader_rank = "Rookie Trader"
+    if trader_score >= 50000:
+        trader_rank = "Legendary Space Mogul"
+    elif trader_score >= 30000:
+        trader_rank = "Galactic Trade Master"
+    elif trader_score >= 15000:
+        trader_rank = "Interstellar Merchant"
+    elif trader_score >= 7500:
+        trader_rank = "Established Trader"
+    elif trader_score >= 3000:
+        trader_rank = "Skilled Trader"
+    elif trader_score >= 1000:
+        trader_rank = "Trader Apprentice"
+    
+    # Determine bounty hunter rank based on total redeemed bounty points
+    bounty_rank = "Amateur Bounty Hunter"
+    if player.bounty_redeemed >= 50:
+        bounty_rank = "Legendary Bounty Hunter"
+    elif player.bounty_redeemed >= 30:
+        bounty_rank = "Master Bounty Hunter"
+    elif player.bounty_redeemed >= 20:
+        bounty_rank = "Elite Bounty Hunter"
+    elif player.bounty_redeemed >= 15:
+        bounty_rank = "Professional Bounty Hunter"
+    elif player.bounty_redeemed >= 10:
+        bounty_rank = "Seasoned Bounty Hunter"
+    elif player.bounty_redeemed >= 5:
+        bounty_rank = "Novice Bounty Hunter"
+
+    # Calculate overall rank based on combined score
+    overall_rank = "Space Rookie"
     if enhanced_score >= 50000:
-        rank = "Legendary Space Mogul"
+        overall_rank = "Legendary Space Captain"
     elif enhanced_score >= 30000:
-        rank = "Galactic Trade Master"
+        overall_rank = "Galactic Champion"
     elif enhanced_score >= 15000:
-        rank = "Interstellar Merchant"
+        overall_rank = "Interstellar Ace"
     elif enhanced_score >= 7500:
-        rank = "Established Trader"
+        overall_rank = "Established Space Captain"
     elif enhanced_score >= 3000:
-        rank = "Skilled Trader"
+        overall_rank = "Skilled Space Captain"
     elif enhanced_score >= 1000:
-        rank = "Trader Apprentice"
+        overall_rank = "Space Apprentice"
 
     return {
         "enhanced_score": enhanced_score,
-        "rank": rank,
-        "bounty_contribution": bounty_bonus
+        "trader_score": trader_score,
+        "bounty_contribution": bounty_bonus,
+        "overall_rank": overall_rank,
+        "trader_rank": trader_rank,
+        "bounty_rank": bounty_rank
     }
+
+def view_bounty_stats(player: Player) -> None:
+    """Display bounty hunting statistics without showing ranks"""
+    print("\nBounty Hunter Statistics:")
+    print(f"Current Bounty Points: {player.bounty_points}")
+    print(f"Total Bounty Points Earned: {player.total_bounty_earned}")
+    print(f"Bounty Points Redeemed: {player.bounty_redeemed}")
+    
+    # Calculate credits earned from bounty redemptions
+    credits_earned = player.bounty_redeemed * 100  # 100 credits per point
+    print(f"Credits Earned from Bounties: {credits_earned} cr")
 
 
 def main():
@@ -638,13 +684,15 @@ def main():
     score_data = calculate_final_score(p)
 
     print(f"\nFinal Score: {score_data['enhanced_score']}")
-    print("Bounty Contribution:")
-    print(f"- Unredeemed points: {p.bounty_points} (worth {p.bounty_points * 75} score)")
-    print(f"- Redeemed points: {p.bounty_redeemed} (worth {p.bounty_redeemed * 25} score)")
-    print(f"- Total bounty contribution: {score_data['bounty_contribution']}")
+    print("Score Breakdown:")
+    print(f"- Trading: {score_data['trader_score']}")
+    print(f"- Bounty Hunting: {score_data['bounty_contribution']}")
     
-    print("\nTrader Rank:")
-    print(score_data["rank"])
+    print("\n==== FINAL RANKINGS ====")
+    print(f"Overall Rank: {score_data['overall_rank']}")
+    print(f"Trader Rank: {score_data['trader_rank']}")
+    print(f"Bounty Hunter Rank: {score_data['bounty_rank']}")
+    
     input("\nPress Enter to leave the game.")
 
 

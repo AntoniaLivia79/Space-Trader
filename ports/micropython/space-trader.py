@@ -42,9 +42,12 @@ game = {
         "shields": 1, "weapons": 1, "goods": {},
         "ship_name": "Intrepid", "captain_name": "Reynolds",
         "location": "exchange",
-        "purchase_records": {},  # Store purchase prices of goods
-        "total_profit": 0,       # Running total of all profits/losses
-        "trades_completed": 0    # Number of trades completed
+        "purchase_records": {}, 
+        "total_profit": 0,      
+        "trades_completed": 0,
+        "bounty_points": 0,           # New: Track current bounty points
+        "total_bounty_earned": 0,     # New: Track lifetime bounty points
+        "bounty_redeemed": 0          # New: Track redeemed points
     },
     "exchange": {"traders": random.randint(6, 10)},
     "running": True
@@ -147,7 +150,8 @@ def manage_ship_stat(stat, increase=False):
 
     p[stat] = max(0, p[stat] - 1)
     if stat == "engine" and p[stat] == 0:
-        print("With no engines, you drift in space. Game over!")
+        print("With no engines, you drift in space.")
+        print("Game over!")
         game["running"] = False
     elif stat == "hold":
         # Jettison goods if needed
@@ -294,11 +298,33 @@ def handle_encounter(type_):
         return
 
     if type_ == "pirate":
+        # Add pirate types with different difficulty and rewards
+        pirate_types = [
+            {"name": "Smuggler", "difficulty": 1, "reward": (1, 2)},
+            {"name": "Raider", "difficulty": 2, "reward": (2, 4)},
+            {"name": "Warlord", "difficulty": 3, "reward": (3, 6)}
+        ]
+        
+        # Select pirate type based on player's weapons/shields
+        player_strength = p["weapons"] + p["shields"]
+        if player_strength >= 5:
+            pirate_type = pirate_types[2]  # Warlord
+        elif player_strength >= 3:
+            pirate_type = pirate_types[1]  # Raider
+        else:
+            pirate_type = pirate_types[0]  # Smuggler
+            
         pirate = random.choice(pirate_names)
-        print("\nPirate " + pirate + " attacks!")
+        print("\n" + pirate_type["name"] + " " + pirate + " attacks!")
 
-        if p["weapons"] > random.randint(0, 2):
+        if p["weapons"] > random.randint(0, pirate_type["difficulty"]):
+            min_reward, max_reward = pirate_type["reward"]
+            bounty_reward = random.randint(min_reward, max_reward)
+            p["bounty_points"] += bounty_reward
+            p["total_bounty_earned"] += bounty_reward
             print("You won the battle!")
+            print("Bounty awarded: " + str(bounty_reward) + " points")
+            print("Total bounty points: " + str(p["bounty_points"]))
             return
 
         if p["shields"] > random.randint(0, 2):
@@ -327,23 +353,25 @@ def explore():
             return
 
         handle_encounter(random.choice(["pirate", "trader", "planet", "empty"]))
-        input("\nPress EXE to continue exploring...")
+        if game["running"]:
+            input("\nPress EXE to continue exploring...")
 
-    print("\nDocking at Exchange...")
-    p["location"] = "exchange"
+    if game["running"]:
+        print("\nDocking at Exchange...")
+        p["location"] = "exchange"
 
-    if p["credits"] < 20:
-        print("Can't pay docking fees. Ship impounded.")
-        game["running"] = False
-        return
+        if p["credits"] < 20:
+            print("Can't pay docking fees. Ship impounded.")
+            game["running"] = False
+            return
 
-    game["exchange"]["traders"] = random.randint(6, 10)
-    p["credits"] -= 20
-    print("Docked. Paid 20 cr fee")
-    p["age"] += 1
+        game["exchange"]["traders"] = random.randint(6, 10)
+        p["credits"] -= 20
+        print("Docked. Paid 20 cr fee")
+        p["age"] += 1
 
-    if p["age"] >= 60:
-        game["running"] = False
+        if p["age"] >= 60:
+            game["running"] = False
 
     input("\nPress EXE to continue...")
 
@@ -380,7 +408,7 @@ def view_trade_stats():
 
 def computer():
     p = game["player"]
-    choice = menu("Ship Computer", ["Instructions", "Ship Status", "Trading Stats", "Rename Ship", "Rename Captain", "Exit Game"])
+    choice = menu("Ship Computer", ["Instructions", "Ship Status", "Trading Stats", "Bounty Stats", "Rename Ship", "Rename Captain", "Exit Game"])
 
     if choice == "1":
         print("\nSpace Trader: Trade goods, upgrade ship,")
@@ -411,18 +439,50 @@ def computer():
         view_trade_stats()
 
     elif choice == "4":
+        view_bounty_stats()
+    
+    elif choice == "5":
         p["ship_name"] = input("\nNew ship name: ")
         print("Ship renamed to " + p["ship_name"])
 
 
-    elif choice == "5":
+    elif choice == "6":
         p["captain_name"] = input("\nNew captain name: ")
         print("Captain renamed to " + p["captain_name"])
 
-    elif choice == "6":
+    elif choice == "7":
         print("\nExiting game...")
         game["running"] = False
         return
+
+    input("\nPress EXE to continue...")
+
+def bounty_office():
+    p = game["player"]
+    print("\n===== Galactic Bounty Office =====")
+    print("Welcome to the Bounty Office!")
+    print("Here you can redeem bounty points")
+    print("for credits.")
+    print("Current bounty points: " + str(p["bounty_points"]))
+
+    if p["bounty_points"] == 0:
+        print("No bounty points to redeem.")
+        input("\nPress EXE to continue...")
+        return
+
+    # Exchange rate: 1 bounty point = 100 credits
+    exchange_rate = 100
+    total_value = p["bounty_points"] * exchange_rate
+
+    choice = input("Redeem bounty points ? (1. Yes 2. No): ")
+
+    if choice == "1":
+        p["credits"] += total_value
+        p["bounty_redeemed"] += p["bounty_points"]
+        print("Redeemed " + str(p["bounty_points"]) + " points for " + str(total_value) + " cr!")
+        p["bounty_points"] = 0
+    else:
+        print("Bounty points not redeemed.")
 
     input("\nPress EXE to continue...")
 
@@ -434,7 +494,9 @@ def exchange():
     print("Starship: " + p["ship_name"])
     print("Age: " + str(p["age"]) + ", Credits: " + str(p["credits"]))
 
-    choice = menu("===== Celastra Exchange ======", ["Buy Goods", "Sell Goods", "Upgrade Ship", "Ship Computer", "Casino", "Launch Ship"])
+    choice = menu("===== Celastra Exchange ======", 
+                 ["Buy Goods", "Sell Goods", "Upgrade Ship", "Ship Computer", 
+                  "Casino", "Bounty Office", "Launch Ship"])
 
     if choice == "1":
         trade(True)
@@ -460,36 +522,46 @@ def exchange():
     elif choice == "5":
         casino()
     elif choice == "6":
+        bounty_office()
+    elif choice == "7":
         explore()
 
 def calculate_final_score():
     p = game["player"]
-    # Profit modifier (avoid division by zero)
     profit_modifier = max(1, p["total_profit"]) if p["total_profit"] > 0 else 1
-    # Enhanced score formula: (Age * Credits * Total Profit) / 10000
-    # We'll use a minimum value of 1 for profit to avoid reducing scores for players with losses
-    enhanced_score = floor((p["age"] * p["credits"] * profit_modifier) / 10000)
+    bounty_bonus = p["bounty_redeemed"] * 50
+    
+    enhanced_score = floor((p["age"] * p["credits"] * profit_modifier) / 10000) + bounty_bonus
 
-    # Player rank based on final score
+    # Determine rank based on combined score
     rank = "Space Rookie"
     if enhanced_score >= 50000:
-        rank = "Legendary Space Mogul"
+        rank = "Legendary Space Captain"
     elif enhanced_score >= 30000:
-        rank = "Galactic Trade Master"
+        rank = "Galactic Champion"
     elif enhanced_score >= 15000:
-        rank = "Interstellar Merchant"
+        rank = "Interstellar Ace"
     elif enhanced_score >= 7500:
-        rank = "Established Trader"
+        rank = "Established Space Captain"
     elif enhanced_score >= 3000:
-        rank = "Skilled Trader"
+        rank = "Skilled Space Captain"
     elif enhanced_score >= 1000:
-        rank = "Trader Apprentice"
+        rank = "Space Apprentice"
 
     return {
         "enhanced_score": enhanced_score,
         "rank": rank
     }
 
+def view_bounty_stats():
+    p = game["player"]
+    print("\nBounty Hunter Statistics:")
+    print("Current Bounty Points: " + str(p["bounty_points"]))
+    print("Total Bounty Points Earned: " + str(p["total_bounty_earned"]))
+    print("Bounty Points Redeemed: " + str(p["bounty_redeemed"]))
+    
+    credits_earned = p["bounty_redeemed"] * 100
+    print("Credits Earned: " + str(credits_earned) + " cr")
 
 print("Welcome to Space Trader v0.0.1!")
 print("\nYour mission: explore space")
@@ -505,6 +577,7 @@ print("\nTrading Career Summary:")
 print("Total Credits: " + str(p["credits"]) + " cr")
 print("Total Profit: " + str(p["total_profit"]) + " cr")
 print("Trades Completed: " + str(p["trades_completed"]))
+print("Bounty Points: " + str(p["total_bounty_earned"]))
 
 if p["trades_completed"] > 0:
     avg_profit = p["total_profit"] / p["trades_completed"]
@@ -515,4 +588,3 @@ score_data = calculate_final_score()
 print("\nFinal Score: " + str(score_data["enhanced_score"]))
 print("Trader Rank:")
 print(score_data["rank"])
-
