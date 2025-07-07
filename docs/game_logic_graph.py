@@ -48,8 +48,8 @@ def create_space_trader_flowchart():
 
         # Planet Outcomes
         (7.5, 9.5, "PLANET EVENTS", 'lightgreen', 2, 0.8),
-        (6, 7.5, "Ship Boon\n+1 Random Stat", 'lightgreen', 1.8, 0.8),
-        (8, 7.5, "Planet Pirate\nSame as Space", 'red', 1.5, 0.8),
+        (6, 7.5, "Planet Encounter\nRewards Player Choice", 'lightgreen', 1.8, 0.8),
+        (8, 7.5, "Planet Pirate\nSame as in Space", 'red', 1.5, 0.8),
         (9.5, 7.5, "Planet Trader\nNo Tax/Limits", 'yellow', 1.5, 0.8),
 
         # Trading Details

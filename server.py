@@ -3,12 +3,10 @@ import threading
 import sqlite3
 import json
 import uuid
-import os
 import bcrypt
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, Optional, Tuple
-from game import Player, Game, exchange, calculate_final_score
+from typing import Optional
+from game import Game, exchange, calculate_final_score
 
 # Database setup
 DB_PATH = "space_trader.db"
@@ -246,17 +244,60 @@ def handle_client(client_socket):
     game = None
     
     try:
-        # Setup network I/O
+        # Setup network I/O with ASCII encoding
         def send_message(msg):
-            client_socket.send(f"{msg}\r\n".encode())
+            client_socket.send(f"{msg}\r\n".encode('ascii', errors='replace'))
         
-        def receive_input(prompt=""):
+        def receive_input(prompt="", hide_input=False):
             if prompt:
                 send_message(prompt)
-            return client_socket.recv(1024).decode().strip()
+            
+            # Read data character by character and echo back
+            data = b""
+            while True:
+                try:
+                    chunk = client_socket.recv(1)
+                    if not chunk:
+                        break
+                    
+                    # Handle backspace (ASCII 8 or 127)
+                    if chunk in [b'\x08', b'\x7f']:
+                        if data:
+                            data = data[:-1]
+                            # Send backspace sequence to erase character
+                            client_socket.send(b'\x08 \x08')
+                        continue
+                    
+                    # Check for line endings
+                    if chunk in [b'\n', b'\r']:
+                        # Skip additional line ending characters
+                        #try:
+                        #    next_chunk = client_socket.recv(1)
+                        #    if next_chunk not in [b'\n', b'\r']:
+                        #        # Put it back by reading it into our data
+                        #        data += next_chunk
+                        #except:
+                        #    pass
+                        break
+                    
+                    data += chunk
+                    
+                    # Echo the character back to the client (unless hiding input)
+                    if not hide_input:
+                        client_socket.send(chunk)
+                    else:
+                        # For hidden input, show asterisk
+                        client_socket.send(b'*')
+                        
+                except socket.timeout:
+                    break
+                except Exception:
+                    break
+            
+            return data.decode('ascii', errors='replace').strip()
         
         # Welcome message
-        send_message("Welcome to Space Trader v0.0.1!")
+        send_message("Welcome to Space Trader !")
         
         # Handle login/registration
         while not username:
@@ -269,7 +310,7 @@ def handle_client(client_socket):
             
             if choice == "1":  # Login
                 username_attempt = receive_input("Username: ")
-                password = receive_input("Password: ")
+                password = receive_input("Password: ", hide_input=True)
                 
                 if authenticate_user(username_attempt, password):
                     username = username_attempt
@@ -297,7 +338,7 @@ def handle_client(client_socket):
             
             elif choice == "2":  # Register
                 new_username = receive_input("Choose a username: ")
-                new_password = receive_input("Choose a password: ")
+                new_password = receive_input("Choose a password: ", hide_input=True)
                 
                 if register_user(new_username, new_password):
                     username = new_username
@@ -314,7 +355,7 @@ def handle_client(client_socket):
         # Game setup
         def mock_print(text, **kwargs):
             try:
-                client_socket.send((str(text) + "\r\n").encode())
+                client_socket.send((str(text) + "\r\n").encode('ascii', errors='replace'))
             except Exception:
                 pass
 
@@ -322,18 +363,62 @@ def handle_client(client_socket):
             try:
                 if not prompt.endswith('\r\n'):
                     prompt += ' '
-                client_socket.send(prompt.encode())
-                response = client_socket.recv(1024).decode().strip()
+                client_socket.send(prompt.encode('ascii', errors='replace'))
+                
+                # Read data until we get a complete line
+                data = b""
+                while True:
+                    try:
+                        chunk = client_socket.recv(1)
+                        if not chunk:
+                            break
+                        data += chunk
+                        # Check for line endings
+                        if chunk in [b'\n', b'\r']:
+                            # Skip additional line ending characters
+                            #try:
+                            #    next_chunk = client_socket.recv(1)
+                            #    if next_chunk not in [b'\n', b'\r']:
+                            #        # Put it back by reading it into our data
+                            #        data += next_chunk
+                            #except:
+                            #    pass
+                            break
+                    except socket.timeout:
+                        break
+                    except Exception:
+                        break
+                
+                response = data.decode('ascii', errors='replace').strip()
                 
                 # Special commands
                 if response.lower() == "/save":
                     if save_game_state(username, game):
-                        client_socket.send("Game saved successfully!\r\n".encode())
+                        client_socket.send("Game saved successfully!\r\n".encode('ascii', errors='replace'))
                     else:
-                        client_socket.send("Failed to save game.\r\n".encode())
+                        client_socket.send("Failed to save game.\r\n".encode('ascii', errors='replace'))
                     # Re-prompt
-                    client_socket.send(prompt.encode())
-                    response = client_socket.recv(1024).decode().strip()
+                    client_socket.send(prompt.encode('ascii', errors='replace'))
+                    # Read again after save command
+                    data = b""
+                    while True:
+                        try:
+                            chunk = client_socket.recv(1)
+                            if not chunk:
+                                break
+                            data += chunk
+                            if chunk in [b'\n', b'\r']:
+                                #try:
+                                #    next_chunk = client_socket.recv(1)
+                                #    if next_chunk not in [b'\n', b'\r']:
+                                #        data += next_chunk
+                                #except:
+                                #    pass
+                                break
+                        except:
+                            break
+                    response = data.decode('ascii', errors='replace').strip()
+                    
                 elif response.lower() == "/quit":
                     # Save game before quitting
                     save_game_state(username, game)
@@ -343,16 +428,34 @@ def handle_client(client_socket):
                     help_text += "/save - Save your game\r\n"
                     help_text += "/quit - Save and exit\r\n"
                     help_text += "/help - Show this help\r\n"
-                    client_socket.send(help_text.encode())
+                    client_socket.send(help_text.encode('ascii', errors='replace'))
                     # Re-prompt
-                    client_socket.send(prompt.encode())
-                    response = client_socket.recv(1024).decode().strip()
-                
+                    client_socket.send(prompt.encode('ascii', errors='replace'))
+                    # Read again after help command
+                    data = b""
+                    while True:
+                        try:
+                            chunk = client_socket.recv(1)
+                            if not chunk:
+                                break
+                            data += chunk
+                            if chunk in [b'\n', b'\r']:
+                                #try:
+                                #    next_chunk = client_socket.recv(1)
+                                #    if next_chunk not in [b'\n', b'\r']:
+                                #        data += next_chunk
+                                #except:
+                                #    pass
+                                break
+                        except:
+                            break
+                    response = data.decode('ascii', errors='replace').strip()
+
                 # Auto-save every 5 minutes
                 update_session_activity(session_id)
                 
                 # Echo response and return
-                client_socket.send(f"{response}\r\n".encode())
+                client_socket.send(f"{response}\r\n".encode('ascii', errors='replace'))
                 return response
             except Exception as e:
                 print(f"Error in mock_input: {e}")
