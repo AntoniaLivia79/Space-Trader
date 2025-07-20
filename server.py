@@ -413,7 +413,8 @@ def handle_client(client_socket):
             send_message("\nPlease select an option:")
             send_message("1. Login")
             send_message("2. Register")
-            send_message("3. Quit")
+            send_message("3. View Active Traders")
+            send_message("4. Quit")
 
             choice = receive_input("Choice: ")
             # first input has escape characters at beginning of string
@@ -466,7 +467,11 @@ def handle_client(client_socket):
                 else:
                     send_message("Username already taken or registration failed. Please try again.")
 
-            elif choice == "3":  # Quit
+            elif choice == "3":  # View Active Traders
+                send_message("\n")
+                display_user_list(send_message)
+
+            elif choice == "4":  # Quit
                 send_message("\n")
                 send_message("Goodbye!")
                 return
@@ -574,6 +579,49 @@ def handle_client(client_socket):
             client_socket.close()
         except:
             pass
+
+def get_users_with_login_status():
+    """Get all users with their current login status"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get all users with their login status
+        cursor.execute('''
+        SELECT u.username,
+               CASE WHEN s.username IS NOT NULL THEN 'Online' ELSE 'Offline' END as status
+        FROM users u
+        LEFT JOIN sessions s ON u.username = s.username
+        GROUP BY u.username,
+                 CASE WHEN s.username IS NOT NULL THEN 'Online' ELSE 'Offline' END
+        ORDER BY u.username
+        ''')
+        
+        results = cursor.fetchall()
+        conn.close()
+        return results
+    except Exception as e:
+        print(f"Error getting users: {e}")
+        return []
+
+def display_user_list(send_message):
+    """Display the list of users with their login status"""
+    users = get_users_with_login_status()
+    
+    if not users:
+        send_message("\nNo registered users found.")
+        return
+    
+    send_message("\n" + "="*30)
+    send_message("REGISTERED SPACE TRADERS")
+    send_message("="*30)
+    send_message(f"{'Username':<20} {'Status':<12}")
+    send_message("-"*30)
+    
+    for username, status in users:
+        send_message(f"{username:<20} {status:<12}")
+    
+    send_message("="*30)
 
 
 def start_server():
