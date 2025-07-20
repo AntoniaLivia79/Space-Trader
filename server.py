@@ -602,11 +602,15 @@ def get_users_with_login_status():
         return results
     except Exception as e:
         print(f"Error getting users: {e}")
-        return []
+        return None
 
 def display_user_list(send_message):
     """Display the list of users with their login status"""
     users = get_users_with_login_status()
+    
+    if users is None:
+        send_message("\nThe user list is temporarily unavailable. Please try again later.")
+        return
     
     if not users:
         send_message("\nNo registered users found.")
