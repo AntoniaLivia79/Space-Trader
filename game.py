@@ -1048,8 +1048,7 @@ def handle_encounter(game: Game, encounter_type: str) -> None:
         handle_pirate_encounter(game)
 
     elif encounter_type == "trader":
-        trader_name = random.choice(trader_names)
-        print(f"\nYou encounter {trader_name} in space!")
+        print(f"\nYou encounter a friendly trader out in space!")
         trade(game)
 
     elif encounter_type == "empty":
