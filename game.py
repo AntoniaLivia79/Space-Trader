@@ -1,6 +1,7 @@
 import random
 import json
 import os
+import sys
 from math import floor
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple
@@ -34,6 +35,8 @@ class Game:
     player: Player = field(default_factory=Player)
     exchange: Dict[str, Any] = field(default_factory=lambda: {"traders": random.randint(6, 10)})
     running: bool = True
+    server_game: bool = False
+    game_state: str = "online"
 
 
 # Procedural generation of goods, pirates, planets, and traders
@@ -343,9 +346,9 @@ def handle_pirate_encounter(game: Game) -> None:
             print(f"Attack missed! Defense margin: {miss_margin}")
 
             if pirate_type["special"] == "stealth":
-                print("The smuggler vanishes into the shadows!")
+                print("The enemy disappears from your scanners!")
             elif pirate_type["special"] == "aggressive":
-                print("The raider evades with superior speed!")
+                print("The enemy evades with superior speed!")
 
         if pirate_health <= 0:
             break
@@ -387,7 +390,7 @@ def handle_pirate_encounter(game: Game) -> None:
             if pirate_type["special"] == "multiple" and random.randint(1, 3) == 1:
                 print("Coordinated assault continues!")
             elif pirate_type["special"] == "aggressive":
-                print("⚡ Follow-up strike incoming!")
+                print("Follow-up strike incoming!")
 
         else:
             defense_margin = player_defense - pirate_attack
@@ -418,11 +421,14 @@ def handle_pirate_encounter(game: Game) -> None:
                     damage_stat = random.choice(["shields", "engine"])
                     print(manage_ship_stat(game, damage_stat))
 
+        input("\nPress ENTER to continue...")
+
+
     # Combat resolution
     if pirate_health <= 0:
         # Victory
         print(f"\n{'=' * 50}")
-        print(f"VICTORY! {pirate_type['name']} {pirate} retreats!")
+        print(f"VICTORY! {pirate_type['name']} {pirate} defeated!")
         print(f"{'=' * 50}")
 
         min_reward, max_reward = pirate_type['reward']
@@ -1121,7 +1127,7 @@ def computer(game: Game) -> None:
     p = game.player
     choice = menu("Ship Computer",
                   ["Instructions", "Ship Status", "Trading Stats", "Bounty Stats", "Pirate Intel", "Rename Ship",
-                   "Rename Captain", "Exit Game"])
+                   "Rename Captain", "Log Off", "Retire"])
 
     if choice == "1":
         print("\nSpace Trader: Trade goods, upgrade ship,")
@@ -1167,7 +1173,11 @@ def computer(game: Game) -> None:
         print(f"Captain renamed to {p.captain_name}")
 
     elif choice == "8":
-        print("\nExiting game...")
+        print("\nLogging off...")
+        game.game_state = "offline"
+
+    elif choice == "9":
+        print("\nTaking early retirement...")
         game.running = False
         return
 

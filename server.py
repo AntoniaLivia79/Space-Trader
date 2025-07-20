@@ -147,6 +147,7 @@ def update_session_activity(session_id: str) -> bool:
         
         conn.commit()
         conn.close()
+
         return True
     except Exception as e:
         print(f"Error updating session: {e}")
@@ -205,6 +206,21 @@ def save_game_state(username: str, game: Game) -> bool:
         print(f"Error saving game state: {e}")
         return False
 
+def delete_player_state(username: str) -> bool:
+    """Delete the player's game state (on game loss)"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM game_states WHERE username = ?", (username,))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"Error deleting player state: {e}")
+        return False
+
 def load_game_state(username: str) -> Optional[Game]:
     """Load a saved game state for a user"""
     try:
@@ -225,6 +241,7 @@ def load_game_state(username: str) -> Optional[Game]:
         game = Game()
         game.running = game_dict["running"]
         game.exchange = game_dict["exchange"]
+        game.server_game = True
         
         # Handle player data
         player_dict = game_dict["player"]
@@ -243,15 +260,115 @@ def handle_client(client_socket):
     username = None
     game = None
     
+    # Define the mock I/O functions at the top level so they're available throughout
+    def send_message(msg):
+        client_socket.send(f"{msg}\r\n".encode('ascii', errors='replace'))
+    
+    def mock_print(text, **kwargs):
+        try:
+            client_socket.send((str(text) + "\r\n").encode('ascii', errors='replace'))
+        except Exception:
+            pass
+
+    def mock_input(prompt=""):
+
+        # Send the prompt
+        if prompt and not prompt.endswith('\r\n'):
+            prompt += ' '
+        client_socket.send(prompt.encode('ascii', errors='replace'))
+
+        # Read data character by character with proper echoing
+        data = b""
+        while True:
+            try:
+                chunk = client_socket.recv(1)
+                if not chunk:
+                    break
+
+                # Handle backspace (ASCII 8 or 127)
+                if chunk in [b'\x08', b'\x7f']:
+                    if data:
+                        data = data[:-1]
+                        # Send backspace sequence to erase character on client
+                        client_socket.send(b'\x08 \x08')
+                    continue
+
+                # Check for line endings
+                if chunk in [b'\n', b'\r']:
+                    # Send newline back for proper line ending
+                    client_socket.send(b'\r\n')
+                    break
+
+                # Add to our data buffer
+                data += chunk
+
+                # Echo the character back to the client immediately
+                client_socket.send(chunk)
+
+            except socket.timeout:
+                break
+            except Exception:
+                break
+
+        response = data.decode('ascii', errors='replace').strip()
+
+        # Auto-save after every input
+        if game and game.running:
+            save_game_state(username, game)
+
+        # Update session activity
+        if session_id:
+            update_session_activity(session_id)
+
+        return response
+
+    def receive_input(prompt="", hide_input=False):
+        if prompt:
+            send_message(prompt)
+
+        # Read data character by character and echo back
+        data = b""
+        while True:
+            try:
+                chunk = client_socket.recv(1)
+                if not chunk:
+                    break
+
+            # Handle backspace (ASCII 8 or 127)
+                if chunk in [b'\x08', b'\x7f']:
+                    if data:
+                        data = data[:-1]
+                        # Send backspace sequence to erase character
+                        client_socket.send(b'\x08 \x08')
+                    continue
+
+                # Check for line endings
+                if chunk in [b'\n', b'\r']:
+                # Send carriage return/newline after input is complete
+                    client_socket.send(b'\r\n')
+                    break
+
+                data += chunk
+
+                # Echo the character back to the client (unless hiding input)
+                if not hide_input:
+                    client_socket.send(chunk)
+                else:
+                # For hidden input, show asterisk
+                    client_socket.send(b'*')
+
+            except socket.timeout:
+                break
+            except Exception:
+                break
+
+        return data.decode('ascii', errors='replace').strip()
+
     try:
-        # Setup network I/O with ASCII encoding
-        def send_message(msg):
-            client_socket.send(f"{msg}\r\n".encode('ascii', errors='replace'))
-        
         def receive_input(prompt="", hide_input=False):
             if prompt:
                 send_message(prompt)
-            
+
             # Read data character by character and echo back
             data = b""
             while True:
@@ -259,7 +376,7 @@ def handle_client(client_socket):
                     chunk = client_socket.recv(1)
                     if not chunk:
                         break
-                    
+
                     # Handle backspace (ASCII 8 or 127)
                     if chunk in [b'\x08', b'\x7f']:
                         if data:
@@ -267,79 +384,80 @@ def handle_client(client_socket):
                             # Send backspace sequence to erase character
                             client_socket.send(b'\x08 \x08')
                         continue
-                    
+
                     # Check for line endings
                     if chunk in [b'\n', b'\r']:
-                        # Skip additional line ending characters
-                        #try:
-                        #    next_chunk = client_socket.recv(1)
-                        #    if next_chunk not in [b'\n', b'\r']:
-                        #        # Put it back by reading it into our data
-                        #        data += next_chunk
-                        #except:
-                        #    pass
                         break
-                    
+
                     data += chunk
-                    
+
                     # Echo the character back to the client (unless hiding input)
                     if not hide_input:
                         client_socket.send(chunk)
                     else:
                         # For hidden input, show asterisk
                         client_socket.send(b'*')
-                        
+
                 except socket.timeout:
                     break
                 except Exception:
                     break
-            
+
             return data.decode('ascii', errors='replace').strip()
-        
+
         # Welcome message
         send_message("Welcome to Space Trader !")
-        
+
         # Handle login/registration
         while not username:
             send_message("\nPlease select an option:")
             send_message("1. Login")
             send_message("2. Register")
             send_message("3. Quit")
-            
+
             choice = receive_input("Choice: ")
-            
+            # first input has escape characters at beginning of string
+            choice = choice[-1]
+
             if choice == "1":  # Login
+                send_message("\n")
                 username_attempt = receive_input("Username: ")
+                send_message("\n")
                 password = receive_input("Password: ", hide_input=True)
-                
+                send_message("\n")
+
                 if authenticate_user(username_attempt, password):
                     username = username_attempt
                     session_id = create_session(username)
                     send_message(f"Welcome back, {username}!")
-                    
+
                     # Check for saved game
                     saved_game = load_game_state(username)
                     if saved_game:
-                        send_message(f"Found a saved game from {saved_game.player.age} years old.")
+                        send_message("Found a saved game.")
                         send_message("Would you like to continue your saved game?")
                         load_choice = receive_input("1. Yes 2. No: ")
-                        
+                        send_message("\n")
+
                         if load_choice == "1":
                             game = saved_game
-                            send_message(f"Game loaded! You have {game.player.credits} credits.")
+                            send_message(f"Game loaded!")
                         else:
                             game = Game()  # Start fresh
-                            send_message("Starting a new game...")
+                            send_message("\nStarting a new game...")
                     else:
                         game = Game()  # No saved game found
                         send_message("No saved game found. Starting a new game...")
                 else:
                     send_message("Invalid username or password. Please try again.")
-            
+
             elif choice == "2":  # Register
+                send_message("\n")
                 new_username = receive_input("Choose a username: ")
+                send_message("\n")
                 new_password = receive_input("Choose a password: ", hide_input=True)
-                
+                send_message("\n")
+
                 if register_user(new_username, new_password):
                     username = new_username
                     session_id = create_session(username)
@@ -347,121 +465,13 @@ def handle_client(client_socket):
                     game = Game()  # New user gets a fresh game
                 else:
                     send_message("Username already taken or registration failed. Please try again.")
-            
+
             elif choice == "3":  # Quit
+                send_message("\n")
                 send_message("Goodbye!")
                 return
-        
-        # Game setup
-        def mock_print(text, **kwargs):
-            try:
-                client_socket.send((str(text) + "\r\n").encode('ascii', errors='replace'))
-            except Exception:
-                pass
 
-        def mock_input(prompt):
-            try:
-                if not prompt.endswith('\r\n'):
-                    prompt += ' '
-                client_socket.send(prompt.encode('ascii', errors='replace'))
-                
-                # Read data until we get a complete line
-                data = b""
-                while True:
-                    try:
-                        chunk = client_socket.recv(1)
-                        if not chunk:
-                            break
-                        data += chunk
-                        # Check for line endings
-                        if chunk in [b'\n', b'\r']:
-                            # Skip additional line ending characters
-                            #try:
-                            #    next_chunk = client_socket.recv(1)
-                            #    if next_chunk not in [b'\n', b'\r']:
-                            #        # Put it back by reading it into our data
-                            #        data += next_chunk
-                            #except:
-                            #    pass
-                            break
-                    except socket.timeout:
-                        break
-                    except Exception:
-                        break
-                
-                response = data.decode('ascii', errors='replace').strip()
-                
-                # Special commands
-                if response.lower() == "/save":
-                    if save_game_state(username, game):
-                        client_socket.send("Game saved successfully!\r\n".encode('ascii', errors='replace'))
-                    else:
-                        client_socket.send("Failed to save game.\r\n".encode('ascii', errors='replace'))
-                    # Re-prompt
-                    client_socket.send(prompt.encode('ascii', errors='replace'))
-                    # Read again after save command
-                    data = b""
-                    while True:
-                        try:
-                            chunk = client_socket.recv(1)
-                            if not chunk:
-                                break
-                            data += chunk
-                            if chunk in [b'\n', b'\r']:
-                                #try:
-                                #    next_chunk = client_socket.recv(1)
-                                #    if next_chunk not in [b'\n', b'\r']:
-                                #        data += next_chunk
-                                #except:
-                                #    pass
-                                break
-                        except:
-                            break
-                    response = data.decode('ascii', errors='replace').strip()
-                    
-                elif response.lower() == "/quit":
-                    # Save game before quitting
-                    save_game_state(username, game)
-                    raise KeyboardInterrupt()
-                elif response.lower() == "/help":
-                    help_text = "\r\n--- Special Commands ---\r\n"
-                    help_text += "/save - Save your game\r\n"
-                    help_text += "/quit - Save and exit\r\n"
-                    help_text += "/help - Show this help\r\n"
-                    client_socket.send(help_text.encode('ascii', errors='replace'))
-                    # Re-prompt
-                    client_socket.send(prompt.encode('ascii', errors='replace'))
-                    # Read again after help command
-                    data = b""
-                    while True:
-                        try:
-                            chunk = client_socket.recv(1)
-                            if not chunk:
-                                break
-                            data += chunk
-                            if chunk in [b'\n', b'\r']:
-                                #try:
-                                #    next_chunk = client_socket.recv(1)
-                                #    if next_chunk not in [b'\n', b'\r']:
-                                #        data += next_chunk
-                                #except:
-                                #    pass
-                                break
-                        except:
-                            break
-                    response = data.decode('ascii', errors='replace').strip()
-
-                # Auto-save every 5 minutes
-                update_session_activity(session_id)
-                
-                # Echo response and return
-                client_socket.send(f"{response}\r\n".encode('ascii', errors='replace'))
-                return response
-            except Exception as e:
-                print(f"Error in mock_input: {e}")
-                return ""
-
-        # Inject our mock I/O functions
+        # Inject our mock I/O functions - do this once and keep them throughout
         import builtins
         original_print = builtins.print
         original_input = builtins.input
@@ -469,63 +479,89 @@ def handle_client(client_socket):
         builtins.input = mock_input
 
         try:
-            # Explain special commands
-            send_message("\nSpecial commands available during play:")
-            send_message("/save - Save your game")
-            send_message("/quit - Save and exit")
-            send_message("/help - Show available commands")
-            send_message("\nYour adventure begins...")
-            
+            # Explain the game mechanics
+            send_message("Your adventure begins...")
+
             # Main game loop
             send_message("\nYour mission: explore space and make your fortune")
             input("Press Enter to continue...")
-            
-            # Periodic auto-save timer
-            last_autosave = datetime.now()
-            
+
             # Run the game until retirement or game over
             while game.running and game.player.age < 60:
-                # Auto-save every 5 minutes
-                now = datetime.now()
-                if (now - last_autosave).total_seconds() > 300:  # 5 minutes
-                    save_game_state(username, game)
-                    last_autosave = now
-                
                 exchange(game)
-            
-            # Game over - save final state
-            save_game_state(username, game)
-            
-            # Game over summary
-            p = game.player
-            send_message(f"\nGame over! You retired at age {p.age}")
-            send_message("\nTrading Career Summary:")
-            send_message(f"Total Credits: {p.credits} cr")
-            send_message(f"Total Profit: {p.total_profit} cr")
-            send_message(f"Trades Completed: {p.trades_completed}")
 
-            if p.trades_completed > 0:
-                from math import floor
-                avg_profit = p.total_profit / p.trades_completed
-                send_message(f"Average Profit per Trade: {floor(avg_profit * 10) / 10} cr")
+                # Check if player chose to log off immediately after the exchange cycle
+                if game and hasattr(game, 'game_state') and game.game_state == "offline":
+                    if game.running:
+                        save_game_state(username, game)
+                    # Clean up session
+                    if session_id:
+                        end_session(session_id)
+                    # Exit the game loop cleanly
+                    break
 
-            score_data = calculate_final_score(p)
-            send_message(f"\nFinal Score: {score_data['enhanced_score']}")
-            send_message("Trader Rank:")
-            send_message(score_data["rank"])
+                # Check after the exchange cycle for any new loss conditions
+                if not game.running:
+                    # Player lost during this exchange cycle
+                    delete_player_state(username)
+                    send_message("\n" + "="*50)
+                    send_message("GAME OVER - You have lost everything!")
+                    send_message("Your player state has been reset.")
+                    send_message("="*50 + "\n")
+
+                    # Show final score for this failed run
+                    p = game.player
+                    score_data = calculate_final_score(p)
+                    send_message(f"Final Score: {score_data['enhanced_score']}")
+                    send_message("Overall Rank: " + score_data["overall_rank"])
+                    send_message("Trader Rank: " + score_data["trader_rank"])
+                    send_message("Bounty Hunter Rank: " + score_data["bounty_rank"])
+                    send_message("\nStarting fresh with a new ship and 1000 credits...")
+                    input("\nPress Enter to continue with your new career...")
+
+                    # Create a fresh game state
+                    game = Game()
+                    continue
+
+                # Auto-save if game is still running
+                if game.running:
+                    save_game_state(username, game)
             
-            # Record high score in leaderboard
-            # (We could add a leaderboard table to the database)
+            # Normal game completion (retirement) - save final state
+            if game.running and game.game_state != "offline":
+                save_game_state(username, game)
             
+                # Game over summary for successful retirement
+                p = game.player
+                send_message(f"\nGame over! You retired at age {p.age}")
+                send_message("\nTrading Career Summary:")
+                send_message(f"Total Credits: {p.credits} cr")
+                send_message(f"Total Profit: {p.total_profit} cr")
+                send_message(f"Trades Completed: {p.trades_completed}")
+
+                if p.trades_completed > 0:
+                    from math import floor
+                    avg_profit = p.total_profit / p.trades_completed
+                    send_message(f"Average Profit per Trade: {floor(avg_profit * 10) / 10} cr")
+
+                score_data = calculate_final_score(p)
+                send_message(f"\nFinal Score: {score_data['enhanced_score']}")
+                send_message("Overall Rank: " + score_data["overall_rank"])
+                send_message("Trader Rank: " + score_data["trader_rank"])
+                send_message("Bounty Hunter Rank: " + score_data["bounty_rank"])
+
         finally:
             # Restore original input/output
             builtins.print = original_print
             builtins.input = original_input
 
+    except ConnectionAbortedError:
+        # Player chose to quit - connection already handled
+        pass
     except Exception as e:
         try:
-            # Save game on unexpected error
-            if username and game:
+            # Save game on unexpected error (only if not in losing state)
+            if username and game and game.running:
                 save_game_state(username, game)
             client_socket.send(f"Error: {str(e)}\r\n".encode())
         except:
