@@ -1,0 +1,205 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #141523;
+    color: #f8f8f2;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+
+h1 {
+    color: #ff79c6;
+}
+
+h2 {
+    color: #ff79c6;
+}
+
+h3 {
+  color: #bd93f9;
+}
+
+h4 {
+    color: #50fa7b;
+}
+
+h5 {
+  color: #bd93f9;
+}
+
+section {
+    margin-bottom: 30px;
+}
+
+/* Space Trader specific components */
+.game-screen {
+    min-height: 300px;
+    border: 1px solid #44475a;
+    padding: 15px;
+    margin: 10px 0;
+    background-color: #141523; /* keep body bg, framed by border */
+}
+
+.menu-options {
+    margin: 10px 0;
+}
+
+.menu-options button {
+    display: block;
+    width: 100%;
+    margin: 6px 0;
+    padding: 10px 12px;
+    background-color: #44475a;
+    color: #f8f8f2;
+    border: 1px solid #bd93f9;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.menu-options button:hover {
+    background-color: #bd93f9;
+    color: #141523;
+}
+
+.status-bar {
+    background-color: transparent;
+    padding: 10px 12px;
+    margin: 10px 0;
+    border-left: 4px solid #50fa7b;
+}
+
+.log {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #44475a;
+    padding: 10px 12px;
+    background-color: #141523;
+}
+
+/* Base */
+body {
+  background-color: #1a1b26;
+  color: #c0caf5;
+}
+
+::selection {
+  background: #33467c;
+  color: #c0caf5;
+}
+
+.container {
+  background-color: #24283b;
+  border: 1px solid #3b4261;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(58, 64, 99, 0.4) inset;
+}
+
+.blurb {
+  line-height: 1.55;
+}
+
+header {
+  margin-bottom: 16px;
+}
+
+h1, h2 { color: #7aa2f7; }
+
+h3 { color: #bb9af7; }
+
+h4 { color: #9ece6a; }
+
+h5 { color: #7dcfff; }
+
+p { color: #c0caf5; }
+
+ul, li { color: #c0caf5; }
+
+a {
+  color: #7dcfff;
+  text-decoration: none;
+  border-bottom: 1px dotted #7dcfff;
+}
+
+a:hover,
+a:focus {
+  color: #bb9af7;
+  border-bottom-color: #bb9af7;
+  outline: none;
+}
+
+a:focus-visible {
+  outline: 2px solid #ff9e64;
+  outline-offset: 2px;
+}
+
+code {
+  background: #1f2335;
+  color: #c0caf5;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid #3b4261;
+}
+
+pre, pre code {
+  background: #1f2335;
+  color: #c0caf5;
+}
+
+pre {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #3b4261;
+  overflow: auto;
+}
+
+footer {
+  color: #7aa2f7;
+}
+
+.game-screen {
+  border: 1px solid #3b4261;
+  background-color: #1a1b26;
+}
+
+.menu-options { margin: 12px 0; }
+
+.menu-options button {
+  background-color: #24283b;
+  color: #c0caf5;
+  border: 1px solid #7aa2f7;
+  border-radius: 8px;
+}
+
+.menu-options button:hover {
+  background-color: #7aa2f7;
+  color: #1a1b26;
+}
+
+.status-bar {
+  background-color: transparent;
+  border-left: 4px solid #7dcfff;
+  color: #c0caf5;
+}
+
+.log {
+  border: 1px solid #3b4261;
+  background-color: #1a1b26;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #3b4261;
+  margin: 16px 0;
+}

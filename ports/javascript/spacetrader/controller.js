@@ -746,28 +746,6 @@ function encounterPirate() {
 
     log(`Pirate ${pirate.name} (${pirate.rank}) attacks!`);
 
-    // Instant destruction chance
-    const pirateDeathChance = 30; // 30%
-    const playerDeathChance = Math.max(0, 30 - (p.shields * 5)); // reduced by shields
-    const roll = randomInt(1, 100);
-
-    if (roll <= pirateDeathChance) {
-        // Pirate destroyed instantly
-        p.bounty_points += pirate.bounty;
-        p.total_bounty_earned += pirate.bounty;
-        p.pirates_defeated = (p.pirates_defeated || 0) + 1;
-        log(`Critical hit! Pirate ${pirate.name} destroyed. Bounty awarded: ${pirate.bounty} points`);
-        updateStatus();
-        continueExploration();
-        return;
-    } else if (roll <= pirateDeathChance + playerDeathChance) {
-        // Player destroyed instantly
-        log("Catastrophic damage! Your ship was annihilated by the pirate.");
-        game.running = false;
-        gameOver();
-        return;
-    }
-
     // Start multi-round battle
     game.exploration.battle = { pirate };
     showBattleStatus("Battle engaged! Choose your action.");
@@ -832,6 +810,28 @@ function resolveBattleRound() {
     // Calculate round power with small randomness
     const playerPower = Math.max(0, p.weapons + p.shields) + randomInt(0, 2);
     const piratePower = Math.max(0, pir.weapons + pir.shields) + randomInt(0, 2);
+
+    // Instant destruction chance
+    const pirateDeathChance = 30; // 30%
+    const playerDeathChance = Math.max(0, 30 - (p.shields * 5)); // reduced by shields
+    const roll = randomInt(1, 100);
+
+    if (roll <= pirateDeathChance) {
+        // Pirate destroyed instantly
+        p.bounty_points += pirate.bounty;
+        p.total_bounty_earned += pirate.bounty;
+        p.pirates_defeated = (p.pirates_defeated || 0) + 1;
+        log(`Critical hit! Pirate ${pirate.name} destroyed. Bounty awarded: ${pirate.bounty} points`);
+        updateStatus();
+        continueExploration();
+        return;
+    } else if (roll <= playerDeathChance) {
+        // Player destroyed instantly
+        log("You received a critical hit! Your ship was annihilated by the pirate.");
+        game.running = false;
+        gameOver();
+        return;
+    }
 
     if (playerPower >= piratePower) {
         // Pirate loses round
