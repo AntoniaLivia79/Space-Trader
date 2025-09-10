@@ -25,7 +25,7 @@ function shipManual() {
         5. Accumulate wealth before retirement<br><br>
 
         <strong>Exploration Encounters:</strong><br>
-        • Pirates: Combat for bounty points<br>
+        • Pirates: Defeat for bounty points<br>
         • Traders: Buy/sell without tax<br>
         • Planets: Beneficial discoveries<br>
         • Empty space: Nothing happens<br><br>
@@ -316,6 +316,7 @@ function processNextEncounter() {
 }
 
 function continueExploration() {
+    if (!game.running) return;
     // Set state to show we're between encounters
     game.exploration.betweenEncounters = true;
     
@@ -336,6 +337,8 @@ function continueExploration() {
 }
 
 function proceedAfterEncounter() {
+    if (!game.running) return;
+
     // Reset between encounters state
     game.exploration.betweenEncounters = false;
     
@@ -351,6 +354,8 @@ function proceedAfterEncounter() {
 }
 
 function finishExploration() {
+    if (!game.running) return;
+
     const p = game.player;
     log("Docking at Exchange...");
     p.location = "exchange";
@@ -378,6 +383,8 @@ function finishExploration() {
 }
 
 function handleEncounter(type) {
+    if (!game.running) return;
+
     const p = game.player;
 
     switch(type) {
@@ -387,7 +394,8 @@ function handleEncounter(type) {
             break;
 
         case "trader":
-            encounterTrader();
+            const trader = randomChoice(traderNames);
+            encounterTrader(trader);
             break;
 
         case "planet":
@@ -395,21 +403,7 @@ function handleEncounter(type) {
             break;
 
         case "pirate":
-            const pirate = randomChoice(pirateNames);
-            log(`Pirate ${pirate} attacks!`);
-            if (p.weapons + p.shields > randomInt(1, 4)) {
-                const bounty = randomInt(1, 3);
-                p.bounty_points += bounty;
-                p.total_bounty_earned += bounty;
-                log(`You won the battle! Bounty awarded: ${bounty} points`);
-                updateStatus();
-            } else {
-                log("Lost! Pirates damaged your ship");
-                const stat = randomChoice(["engine", "hold", "shields", "weapons"]);
-                log(manageStat(stat));
-                updateStatus();
-            }
-            continueExploration();
+            encounterPirate();
             break;
     }
 }
@@ -428,26 +422,14 @@ function encounterPlanet() {
     } else if (roll <= 80) {
         // Fight encounter (pirate ambush on planet)
         log("Pirate ambush on the planet!");
-        const pirate = randomChoice(pirateNames);
-        log(`Pirate ${pirate} attacks!`);
-        if (game.player.weapons + game.player.shields > randomInt(1, 4)) {
-            const bounty = randomInt(1, 3);
-            game.player.bounty_points += bounty;
-            game.player.total_bounty_earned += bounty;
-            log(`You won the battle! Bounty awarded: ${bounty} points`);
-            updateStatus();
-        } else {
-            log("Lost! Pirates damaged your ship");
-            const stat = randomChoice(["engine", "hold", "shields", "weapons"]);
-            log(manageStat(stat));
-            updateStatus();
-        }
-        continueExploration();
+        // Route ambush into the standard pirate battle flow so the player can choose
+        encounterPirate();
+        return;
     } else {
         // Trade encounter on planet
         const trader = randomChoice(traderNames);
         log(`You encounter ${trader} on ${planet}!`);
-        encounterTrader();
+        encounterTrader(trader);
     }
 }
 
@@ -490,13 +472,12 @@ function processBoonOutcome(outcome) {
     continueExploration();
 }
 
-// Trader encounter in space
-function encounterTrader() {
-    const trader = randomChoice(traderNames);
+// Trader encounter
+function encounterTrader(trader) {
     const good = randomChoice(goodsList);
     const price = randomInt(15, 250);
 
-    log(`Encountered trader ${trader} in space!`);
+    log(`Encountered trader ${trader}!`);
 
     setScreen(`Space Trader Encounter<br><br>${trader} hails your ship:<br>"Greetings, Captain! I have ${good} for sale.<br>Price: ${price} credits"<br><br>What do you want to do?`);
 
@@ -745,6 +726,172 @@ function exchange() {
         { text: "Bounty Office", action: () => bountyOffice() },
         { text: "Launch Ship", action: () => explore() }
     ]);
+}
+
+// Pirate encounter system with ranks, instant outcomes, and multi-round combat
+function encounterPirate() {
+    const p = game.player;
+    const pirateName = randomChoice(pirateNames);
+
+    // Determine pirate rank based on player's pirates_defeated
+    const rankInfo = getPirateRankInfo(p.pirates_defeated || 0);
+    const pirate = {
+        name: pirateName,
+        rank: rankInfo.rank,
+        weapons: Math.max(1, p.weapons + rankInfo.bonus),
+        shields: Math.max(0, p.shields + rankInfo.bonus - 1),
+        engine: Math.max(1, p.engine + Math.max(0, rankInfo.bonus - 1)),
+        bounty: Math.max(1, randomInt(1, 3) + Math.max(0, rankInfo.bonus))
+    };
+
+    log(`Pirate ${pirate.name} (${pirate.rank}) attacks!`);
+
+    // Instant destruction chance
+    const pirateDeathChance = 30; // 30%
+    const playerDeathChance = Math.max(0, 30 - (p.shields * 5)); // reduced by shields
+    const roll = randomInt(1, 100);
+
+    if (roll <= pirateDeathChance) {
+        // Pirate destroyed instantly
+        p.bounty_points += pirate.bounty;
+        p.total_bounty_earned += pirate.bounty;
+        p.pirates_defeated = (p.pirates_defeated || 0) + 1;
+        log(`Critical hit! Pirate ${pirate.name} destroyed. Bounty awarded: ${pirate.bounty} points`);
+        updateStatus();
+        continueExploration();
+        return;
+    } else if (roll <= pirateDeathChance + playerDeathChance) {
+        // Player destroyed instantly
+        log("Catastrophic damage! Your ship was annihilated by the pirate.");
+        game.running = false;
+        gameOver();
+        return;
+    }
+
+    // Start multi-round battle
+    game.exploration.battle = { pirate };
+    showBattleStatus("Battle engaged! Choose your action.");
+}
+
+function getPirateRankInfo(piratesDefeated) {
+    // Rank tiers with weights increasing with player success
+    // Returns: { rank, bonus, retreatOnLossChance }
+    let tier;
+    if (piratesDefeated < 3) tier = 0; else if (piratesDefeated < 6) tier = 1; else if (piratesDefeated < 10) tier = 2; else tier = 3;
+
+    // Define ranks
+    const ranks = [
+        { rank: "Rookie", bonus: -1, retreatOnLoss: 50 },
+        { rank: "Raider", bonus: 0, retreatOnLoss: 40 },
+        { rank: "Corsair", bonus: 1, retreatOnLoss: 30 },
+        { rank: "Warlord", bonus: 2, retreatOnLoss: 20 }
+    ];
+
+    // Probability distribution per tier
+    const distributions = [
+        [70, 25, 5, 0],    // early game mostly Rookie
+        [35, 45, 18, 2],   // mid
+        [10, 40, 40, 10],  // late mid
+        [0, 20, 50, 30]    // late
+    ];
+
+    const dist = distributions[tier];
+    const pick = randomInt(1, 100);
+    let acc = 0;
+    let idx = 0;
+    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (pick <= acc) { idx = i; break; } }
+    return ranks[idx];
+}
+
+function showBattleStatus(message) {
+    if (!game.running) return;
+    const p = game.player;
+    const b = game.exploration.battle;
+    const pir = b.pirate;
+
+    const content = `Pirate Encounter<br>` +
+        `${pir.name} (${pir.rank})<br>` +
+        `Pirate Stats - Wepons:${pir.weapons} Shields:${pir.shields} Engine:${pir.engine}<br>` +
+        `Your Stats - Weapons:${p.weapons} Shields:${p.shields} Engine:${p.engine}<br><br>` +
+        `${message}`;
+
+    setScreen(content);
+    setMenu([
+        { text: "Fight", action: () => resolveBattleRound() },
+        { text: "Attempt Retreat", action: () => attemptPlayerRetreat() }
+    ]);
+}
+
+function resolveBattleRound() {
+    if (!game.running) return;
+    const p = game.player;
+    const b = game.exploration.battle;
+    if (!b || !b.pirate) { continueExploration(); return; }
+    const pir = b.pirate;
+
+    // Calculate round power with small randomness
+    const playerPower = Math.max(0, p.weapons + p.shields) + randomInt(0, 2);
+    const piratePower = Math.max(0, pir.weapons + pir.shields) + randomInt(0, 2);
+
+    if (playerPower >= piratePower) {
+        // Pirate loses round
+        const stat = chooseDamageableStat(pir, ["weapons", "shields", "engine"]);
+        if (stat) {
+            pir[stat] = Math.max(0, pir[stat] - 1);
+        }
+        // Check pirate destroyed condition: all combat stats at 0
+        if ((pir.weapons + pir.shields + pir.engine) <= 0) {
+            p.bounty_points += pir.bounty;
+            p.total_bounty_earned += pir.bounty;
+            p.pirates_defeated = (p.pirates_defeated || 0) + 1;
+            updateStatus();
+            log(`You destroyed ${pir.name} (${pir.rank})! Bounty: ${pir.bounty}`);
+            game.exploration.battle = null;
+            continueExploration();
+            return;
+        }
+        // Chance pirate retreats on losing a round, lower if stronger
+        const retreatChances = { "Rookie": 50, "Raider": 40, "Corsair": 30, "Warlord": 20 };
+        const retreatChance = retreatChances[pir.rank] || 30;
+        if (randomInt(1, 100) <= retreatChance) {
+            log(`Pirate ${pir.name} (${pir.rank}) retreated! No bounty awarded.`);
+            game.exploration.battle = null;
+            continueExploration();
+            return;
+        }
+        updateStatus();
+        showBattleStatus(`You won the round! Damaged pirate's ${stat}.`);
+    } else {
+        // Player loses round
+        const stat = chooseDamageableStat(p, ["engine", "hold", "shields", "weapons"]);
+        if (stat) {
+            log(`You lost the round! ${cap(stat)} took damage.`);
+            log(manageStat(stat));
+            updateStatus();
+            if (!game.running) return; // manageStat may end game
+        }
+        showBattleStatus("You may try to retreat or continue fighting.");
+    }
+}
+
+function chooseDamageableStat(obj, candidates) {
+    const pool = candidates.filter(k => (obj[k] || 0) > 0);
+    if (pool.length === 0) return null;
+    return randomChoice(pool);
+}
+
+function attemptPlayerRetreat() {
+    if (!game.running) return;
+    const p = game.player;
+    const chance = Math.min(90, Math.max(5, p.engine * 10)); // 10% per engine, min 5%, max 90%
+    if (randomInt(1, 100) <= chance) {
+        log(`Retreat successful (chance ${chance}%). You escape to the next sector.`);
+        game.exploration.battle = null;
+        continueExploration();
+    } else {
+        log(`Retreat failed (chance ${chance}%). The pirate closes in!`);
+        showBattleStatus("Retreat failed! Prepare for the next round.");
+    }
 }
 
 function gameOver() {

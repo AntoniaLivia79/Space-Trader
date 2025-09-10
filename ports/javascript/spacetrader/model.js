@@ -36,7 +36,6 @@ const traderNames = [
     "Astrid Moonglow", "Rigel Amberwing", "Celeste Horizon", "Tiberius Void"
 ];
 
-// Planet encounter scenarios from the original MicroPython script
 const planetScenarios = [
     {
         desc: "You discover ruins with an artifact.",
@@ -75,7 +74,8 @@ let game = {
         ship_name: "Intrepid", captain_name: "Reynolds",
         location: "exchange", purchase_records: {},
         total_profit: 0, trades_completed: 0,
-        bounty_points: 0, total_bounty_earned: 0, bounty_redeemed: 0
+        bounty_points: 0, total_bounty_earned: 0, bounty_redeemed: 0,
+        pirates_defeated: 0
     },
     exchange: { traders: randomInt(6, 10) },
     running: true,
