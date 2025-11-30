@@ -10,7 +10,7 @@ The stars glittered like shards of broken glass across the endless void, as *Rey
 
 **Space Trader** is a text-based trading and exploration game set in a procedurally generated universe. You take the role of a space trader named *Reynolds*, commanding your starship *Intrepid*.
 
-The game consists of a game engine, game.py, which can be played from a terminal emulator. There is also a server engine, which can host a multiplayer persistent game world. The server engine uses ASCII encoding as it has been designed to be accessed over older clients (such as telnet). There are also three ports with simpler gameplay: a micropython version,a javascript version and a version in MBasic, for Z80 environments such as CP/M. The MBasic port is not yet playable. 
+The game consists of a game engine, game.py, which can be played from a terminal emulator. There is also a server engine, which can host a multiplayer persistent game world. The server engine uses ASCII encoding as it has been designed to be accessed over older clients (such as telnet). There are also three ports with simpler gameplay: micropython versions for the Numworks calculator and M5Stack Cardputer, and a javascript version. 
 
 Your journey begins at the age of 30, and the game ends when you retire, aged 60, from the Trading Guild. Due to hibernation you only age when docked at the Galactic Exchange. Your final score is based on the credits you have accrued.
 
